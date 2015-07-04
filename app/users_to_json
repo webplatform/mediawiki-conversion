@@ -1,0 +1,40 @@
+#!/usr/bin/env php
+<?php
+
+$cli = realpath(__DIR__ . '/../../mediawiki/maintenance/commandLine.inc');
+
+if (!file_exists($cli)) {
+    throw new \Exception('Could not find MediaWiki code checkout in parent directory');
+}
+require $cli;
+
+/**
+ * Export all user data into a big JSON string.
+ *
+ * [{
+ *  "user_email":"public-webplatform@w3.org",
+ *  "user_id":"1","user_name":"WikiSysop",
+ *  "user_real_name":"",
+ *  "user_email_authenticated":null
+ * }]
+ *
+ * This script ran against
+ *
+ * Copy this file into mediawiki/maintenance/export_users.php and
+ * run from the terminal.
+ *
+ *     php mediawiki/maintenance/export_users.php > ~/users.json
+ **/
+
+// ref: https://www.mediawiki.org/wiki/Manual:Database_access
+$dbr = wfGetDB(DB_SLAVE);
+
+// ref: https://www.mediawiki.org/wiki/Manual:User_table
+$id_list = $dbr->select( 'user', array('user_email', 'user_id','user_name','user_real_name','user_email_authenticated'));
+
+$out = array();
+foreach($id_list as $user_data){
+   $out[] = (array) $user_data;
+}
+
+echo json_encode($out);
