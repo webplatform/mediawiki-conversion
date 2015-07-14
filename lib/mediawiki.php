@@ -1,5 +1,8 @@
 <?php
+
 /**
+ * WebPlatform MediaWiki Conversion.
+ *
  * Autoloaded by composer
  **/
 
