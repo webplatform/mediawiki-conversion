@@ -61,10 +61,13 @@ DESCR
                 $file->setFileName(MediaWikiDocument::toFileName($wikiDocument->getTitle()));
 
                 $path  = $file->getFileName();
+
                 $title = $wikiDocument->getTitle();
                 $revs  = $wikiDocument->getRevisions()->count();
                 $is_translation = $wikiDocument->isTranslation() === true ? 'Yes' : 'No';
                 $language_code = $wikiDocument->getLanguageCode();
+
+                $path .= (($wikiDocument->isTranslation()) ? null : '/index' ) . '.md';
 
                 $output->writeln(sprintf('"https://docs.webplatform.org/wiki/%s":', $title));
                 $output->writeln(sprintf('  - is_translation: %s', $is_translation));
