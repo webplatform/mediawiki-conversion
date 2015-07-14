@@ -5,12 +5,13 @@
     "keywords": ["mediawiki","backupDump","exporter","migration"],
     "license": "MIT",
     "require": {
-        "webplatform/content-converter": "dev-master",
+        "prewk/xml-string-streamer": "^0.7.1",
         "symfony/console": "~2.7",
-        "symfony/process": "~2.7",
-        "symfony/finder": "~2.7",
         "symfony/filesystem": "~2.7",
-        "symfony/http-foundation": "~2.7"
+        "symfony/finder": "~2.7",
+        "symfony/http-foundation": "~2.7",
+        "symfony/process": "~2.7",
+        "webplatform/content-converter": "dev-master"
     },
     "require-dev": {
         "doctrine/annotations": "~1.2",
@@ -38,7 +39,7 @@
             "WebPlatform\\": "src/"
         },
         "files": [
-            "lib/loader.php"
+            "lib/mediawiki.php"
         ]
     },
     "config": {

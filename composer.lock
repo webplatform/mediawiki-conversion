@@ -4,8 +4,49 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "9181acf79f8a7c91b10ddd3590f5c694",
+    "hash": "c0dbc6423e0ed1e34d5ef5a0efcf67f5",
     "packages": [
+        {
+            "name": "prewk/xml-string-streamer",
+            "version": "0.7.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/prewk/xml-string-streamer.git",
+                "reference": "55f34d376a2a1ca1efc77a4d2666ab2e1f04fa65"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/prewk/xml-string-streamer/zipball/55f34d376a2a1ca1efc77a4d2666ab2e1f04fa65",
+                "reference": "55f34d376a2a1ca1efc77a4d2666ab2e1f04fa65",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.3.0"
+            },
+            "require-dev": {
+                "mockery/mockery": "dev-master",
+                "prewk/xml-faker": "0.0.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Prewk\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "prewk",
+                    "email": "oskar.thornblad@gmail.com"
+                }
+            ],
+            "description": "Stream large XML files with low memory consumption",
+            "homepage": "https://github.com/prewk/xml-string-streamer",
+            "time": "2015-05-08 19:26:21"
+        },
         {
             "name": "symfony/console",
             "version": "v2.7.2",

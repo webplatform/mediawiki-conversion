@@ -14,4 +14,5 @@ date_default_timezone_set('America/Montreal');
 
 $_SERVER['REMOTE_ADDR']='127.0.0.1';
 
-define('DUMP_DIR', '/vagrant/mediawiki-conversion/data/dumps');
+//define('DUMP_DIR', '/vagrant/mediawiki-conversion/data/dumps');
+define('DUMP_DIR', '/Users/renoirb/workspaces/webplatform/service-wiki/mediawiki-conversion/data/dumps');
