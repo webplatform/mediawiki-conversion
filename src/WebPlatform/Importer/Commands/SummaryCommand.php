@@ -45,10 +45,11 @@ DESCR
 
         $file = DUMP_DIR.'/main_full.xml';
 
-        $output->writeln(sprintf('<header>Importing from %s</header>', $file));
-
         $streamer = XmlStringStreamer::createStringWalkerParser($file);
         $this->converter = new MediaWikiToMarkdown;
+
+        $moreThanHundredRevs = array();
+        $pages = array();
 
         while ($node = $streamer->getNode()) {
             $pageNode = new SimpleXMLElement($node);
@@ -69,12 +70,30 @@ DESCR
 
                 $path .= (($wikiDocument->isTranslation()) ? null : '/index' ) . '.md';
 
-                $output->writeln(sprintf('"https://docs.webplatform.org/wiki/%s":', $title));
+                if ($revs > 99) {
+                    $moreThanHundredRevs[] = $wikiDocument->getTitle();
+                }
+
+                $output->writeln(sprintf('"%s":', $title));
                 $output->writeln(sprintf('  - is_translation: %s', $is_translation));
                 $output->writeln(sprintf('  - language_code: %s', $language_code));
                 $output->writeln(sprintf('  - revisions: %d', $revs));
                 $output->writeln(sprintf('  - file_path: %s', $path));
+                $output->writeln('');
+                $output->writeln('');
+
+                if (!in_array($path, $pages)) {
+                    $pages[] = $path;
+                } else {
+                    throw new \Exception(sprintf("We have duplicate pages for %s, would be called %s", $title, $path));
+                }
             }
+
+        }
+
+        $output->writeln('More than 100 revisions:');
+        foreach ($moreThanHundredRevs as $r) {
+            $output->writeln(sprintf('  - %s', $r));
         }
     }
 }
