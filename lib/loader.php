@@ -4,7 +4,7 @@
  * WebPlatform MediaWiki Conversion.
  **/
 
-use WebPlatform\Importer\Commands\ImportCommand;
+use WebPlatform\Importer\Commands\SummaryCommand;
 use Symfony\Component\Console\Application;
 
 /**
@@ -15,7 +15,7 @@ use Symfony\Component\Console\Application;
 if ($console instanceof Application) {
 
     // Load all commands here directly
-    $console->add(new ImportCommand());
+    $console->add(new SummaryCommand());
 
 } else {
     throw new \Exception('Did you require lib/loader.php AFTER bootstrapping the application?');

@@ -10,7 +10,6 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 use WebPlatform\ContentConverter\Converter\MediaWikiToMarkdown;
 use WebPlatform\ContentConverter\Model\MediaWikiDocument;
@@ -19,12 +18,7 @@ use WebPlatform\ContentConverter\Persistency\FileGitCommit;
 use SimpleXMLElement;
 use Prewk\XmlStringStreamer;
 
-/**
- * Notes:
- *   - http://ailoo.net/2013/03/stream-a-file-with-streamedresponse-in-symfony/
- *   - http://www.sitepoint.com/command-line-php-using-symfony-console/.
- **/
-class ImportCommand extends Command
+class SummaryCommand extends Command
 {
 
     protected function convert(MediaWikiRevision $revision)
@@ -34,8 +28,14 @@ class ImportCommand extends Command
 
     protected function configure()
     {
-        $this->setName('wpd:import')
-             ->setDescription('Import data');
+        $this
+            ->setName('mediawiki:summary')
+            ->setDescription(<<<DESCR
+                Walk through MediaWiki dumpBackup XML file,
+                summarize revisions and a suggested file name
+                to store on a filesystem.
+DESCR
+            );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -43,7 +43,7 @@ class ImportCommand extends Command
         $header_style = new OutputFormatterStyle('white', 'black', array('bold'));
         $output->getFormatter()->setStyle('header', $header_style);
 
-        $file = DUMP_DIR.'/main.xml';
+        $file = DUMP_DIR.'/main_full.xml';
 
         $output->writeln(sprintf('<header>Importing from %s</header>', $file));
 
@@ -55,13 +55,22 @@ class ImportCommand extends Command
             if (isset($pageNode->title)) {
 
                 $wikiDocument = new MediaWikiDocument($pageNode);
-                $wikiRevision = $wikiDocument->getLatest();
-                $markdownRevision = $this->convert($wikiRevision);
 
-                $file = new FileGitCommit($markdownRevision);
+                $wikiRevision = $wikiDocument->getLatest();
+                $file = new FileGitCommit($wikiRevision);
                 $file->setFileName(MediaWikiDocument::toFileName($wikiDocument->getTitle()));
 
-                echo $file->getFileName().PHP_EOL;
+                $path  = $file->getFileName();
+                $title = $wikiDocument->getTitle();
+                $revs  = $wikiDocument->getRevisions()->count();
+                $is_translation = $wikiDocument->isTranslation() === true ? 'Yes' : 'No';
+                $language_code = $wikiDocument->getLanguageCode();
+
+                $output->writeln(sprintf('"https://docs.webplatform.org/wiki/%s":', $title));
+                $output->writeln(sprintf('  - is_translation: %s', $is_translation));
+                $output->writeln(sprintf('  - language_code: %s', $language_code));
+                $output->writeln(sprintf('  - revisions: %d', $revs));
+                $output->writeln(sprintf('  - file_path: %s', $path));
             }
         }
     }

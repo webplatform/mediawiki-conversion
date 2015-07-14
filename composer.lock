@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "c0dbc6423e0ed1e34d5ef5a0efcf67f5",
+    "hash": "0684c4d48c2fa9c4bc491d12c010055d",
     "packages": [
         {
             "name": "prewk/xml-string-streamer",
@@ -303,95 +303,6 @@
             "description": "Symfony Process Component",
             "homepage": "https://symfony.com",
             "time": "2015-07-01 11:25:50"
-        },
-        {
-            "name": "symfony/yaml",
-            "version": "v2.7.2",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/symfony/Yaml.git",
-                "reference": "4bfbe0ed3909bfddd75b70c094391ec1f142f860"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/symfony/Yaml/zipball/4bfbe0ed3909bfddd75b70c094391ec1f142f860",
-                "reference": "4bfbe0ed3909bfddd75b70c094391ec1f142f860",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=5.3.9"
-            },
-            "require-dev": {
-                "symfony/phpunit-bridge": "~2.7"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "2.7-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Symfony\\Component\\Yaml\\": ""
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Fabien Potencier",
-                    "email": "fabien@symfony.com"
-                },
-                {
-                    "name": "Symfony Community",
-                    "homepage": "https://symfony.com/contributors"
-                }
-            ],
-            "description": "Symfony Yaml Component",
-            "homepage": "https://symfony.com",
-            "time": "2015-07-01 11:25:50"
-        },
-        {
-            "name": "webplatform/content-converter",
-            "version": "dev-master",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/webplatform/mediawiki-transformer.git",
-                "reference": "37e884142981cd930eae4bfa96e21a03ab7747c9"
-            },
-            "require": {
-                "symfony/yaml": "^2.7"
-            },
-            "require-dev": {
-                "doctrine/annotations": "~1.2",
-                "fabpot/php-cs-fixer": "^1.9",
-                "phpunit/phpunit": "~4.7"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-0": {
-                    "WebPlatform\\ContentConverter\\": "lib/"
-                }
-            },
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Renoir Boulanger",
-                    "email": "renoir@w3.org"
-                }
-            ],
-            "description": "Convert content from a data source and format into another format in another data persistency layer. First implementation; MediaWiki XML dumpBackup into Markdown files in Git",
-            "keywords": [
-                "git",
-                "markdown",
-                "mediawiki",
-                "wikitext"
-            ],
-            "time": "2015-07-13 23:58:05"
         }
     ],
     "packages-dev": [
@@ -1578,13 +1489,60 @@
             "description": "Symfony Stopwatch Component",
             "homepage": "https://symfony.com",
             "time": "2015-07-01 18:23:16"
+        },
+        {
+            "name": "symfony/yaml",
+            "version": "v2.7.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/Yaml.git",
+                "reference": "4bfbe0ed3909bfddd75b70c094391ec1f142f860"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/Yaml/zipball/4bfbe0ed3909bfddd75b70c094391ec1f142f860",
+                "reference": "4bfbe0ed3909bfddd75b70c094391ec1f142f860",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.3.9"
+            },
+            "require-dev": {
+                "symfony/phpunit-bridge": "~2.7"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.7-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Component\\Yaml\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Fabien Potencier",
+                    "email": "fabien@symfony.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony Yaml Component",
+            "homepage": "https://symfony.com",
+            "time": "2015-07-01 11:25:50"
         }
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "webplatform/content-converter": 20
-    },
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": [],
