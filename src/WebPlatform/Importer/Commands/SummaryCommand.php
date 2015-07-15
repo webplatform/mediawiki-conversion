@@ -58,7 +58,8 @@ DESCR
 
         // Pages we have to make sure aren’t duplicate on the CMS prior
         // to the final migration.
-        $temporary_acceptable_duplicates[] = 'css/selectors/pseudo-classes/:lang';
+        $temporary_acceptable_duplicates = array();
+        //$temporary_acceptable_duplicates[] = 'css/selectors/pseudo-classes/:lang'; // DONE
 
         while ($node = $streamer->getNode()) {
             if ($maxHops > 0 && $maxHops === $counter) {
@@ -196,11 +197,12 @@ DESCR
         $output->writeln('');
         $output->writeln('');
 
-        $output->writeln('Summary:');
-        $output->writeln(sprintf('  - number of iterations: %d', $counter));
-        $output->writeln(sprintf('  - number of pages: %d', count($pages)));
-        $output->writeln(sprintf('  - number of redirects: %d', count($redirects)));
-        $output->writeln(sprintf('  - number of redirects for URL string sanity: %d', count($url_sanity_redirects)));
+        $output->writeln('Numbers:');
+        $output->writeln(sprintf('  - iterations: %d', $counter));
+        $output->writeln(sprintf('  - pages: %d', count($pages)));
+        $output->writeln(sprintf('  - redirects: %d', count($redirects)));
+        $output->writeln(sprintf('  - pages translated: %d', count($translations)));
+        $output->writeln(sprintf('  - redirects for URL string sanity: %d', count($url_sanity_redirects)));
 
     }
 }
