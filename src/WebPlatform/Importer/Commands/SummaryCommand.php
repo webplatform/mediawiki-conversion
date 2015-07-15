@@ -53,6 +53,9 @@ DESCR
         $redirects = array();
         $url_sanity_redirects = array();
         $pages = array();
+        $directlyOnRoot = array();
+        $rev_count = array(); // So we can know what’s the average
+
         $counter = 1;
         $maxHops = 0;
 
@@ -89,6 +92,14 @@ DESCR
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
                 $output->writeln(sprintf('  - revisions: %d', $revs));
+
+                $rev_count[] = $revs;
+
+                // Which pages are directly on /wiki/foo. Are there some we
+                // should move elsewhere such as the glossary items?
+                if (count(explode('/', $title)) == 1 && $redirect === false) {
+                    $directlyOnRoot[] = $title;
+                }
 
                 if ($revs > 99) {
                     $moreThanHundredRevs[] = sprintf('%s (%d)', $title, $revs);
@@ -149,6 +160,28 @@ DESCR
 
         }
 
+        /**
+         * Work some numbers on number of edits
+         *
+         * - Average
+         * - Median
+         */
+        $total_edits = 0;
+        sort($rev_count);
+        $edit_average = array_sum($rev_count)/$counter;
+
+        // Calculate median
+        $value_in_middle = floor(($counter-1)/2);
+        if ($counter % 2) {
+            // odd number, middle is the median
+            $edit_median = $rev_count[$value_in_middle];
+        } else {
+            // even number, calculate avg of 2 medians
+            $low = $rev_count[$value_in_middle];
+            $high = $rev_count[$value_in_middle+1];
+            $edit_median = (($low+$high)/2);
+        }
+
         $output->writeln('---');
         $output->writeln('');
         $output->writeln('');
@@ -197,12 +230,26 @@ DESCR
         $output->writeln('');
         $output->writeln('');
 
+        $output->writeln('Pages not in a directory:');
+        foreach ($directlyOnRoot as $title) {
+            $output->writeln(sprintf(' - %s', $title));
+        }
+
+        $output->writeln('');
+        $output->writeln('');
+        $output->writeln('---');
+        $output->writeln('');
+        $output->writeln('');
+
         $output->writeln('Numbers:');
-        $output->writeln(sprintf('  - iterations: %d', $counter));
-        $output->writeln(sprintf('  - pages: %d', count($pages)));
-        $output->writeln(sprintf('  - redirects: %d', count($redirects)));
-        $output->writeln(sprintf('  - pages translated: %d', count($translations)));
-        $output->writeln(sprintf('  - redirects for URL string sanity: %d', count($url_sanity_redirects)));
+        $output->writeln(sprintf('  - "iterations": %d', $counter));
+        $output->writeln(sprintf('  - "content pages": %d', count($pages)));
+        $output->writeln(sprintf('  - "redirects": %d', count($redirects)));
+        $output->writeln(sprintf('  - "translated": %d', count($translations)));
+        $output->writeln(sprintf('  - "not in a directory": %d', count($directlyOnRoot)));
+        $output->writeln(sprintf('  - "redirects for URL sanity": %d', count($url_sanity_redirects)));
+        $output->writeln(sprintf('  - "edits average": %d', $edit_average));
+        $output->writeln(sprintf('  - "edits median": %d', $edit_median));
 
     }
 }
