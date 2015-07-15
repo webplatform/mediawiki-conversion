@@ -11,20 +11,16 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 
-use WebPlatform\ContentConverter\Converter\MediaWikiToMarkdown;
 use WebPlatform\ContentConverter\Model\MediaWikiDocument;
-use WebPlatform\ContentConverter\Entity\MediaWikiRevision;
+use WebPlatform\ContentConverter\Entity\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\FileGitCommit;
+
 use SimpleXMLElement;
 use Prewk\XmlStringStreamer;
 
 class SummaryCommand extends Command
 {
-
-    protected function convert(MediaWikiRevision $revision)
-    {
-        return $this->converter->apply($revision);
-    }
+    protected $users = array();
 
     protected function configure()
     {
@@ -43,11 +39,6 @@ DESCR
         $header_style = new OutputFormatterStyle('white', 'black', array('bold'));
         $output->getFormatter()->setStyle('header', $header_style);
 
-        $file = DUMP_DIR.'/main_full.xml';
-
-        $streamer = XmlStringStreamer::createStringWalkerParser($file);
-        $this->converter = new MediaWikiToMarkdown;
-
         $moreThanHundredRevs = array();
         $translations = array();
         $redirects = array();
@@ -56,13 +47,37 @@ DESCR
         $directlyOnRoot = array();
         $rev_count = array(); // So we can know what’s the average
 
-        $counter = 1;
-        $maxHops = 0;
-
         // Pages we have to make sure aren’t duplicate on the CMS prior
         // to the final migration.
         $temporary_acceptable_duplicates = array();
         //$temporary_acceptable_duplicates[] = 'css/selectors/pseudo-classes/:lang'; // DONE
+
+        $problematic_author_entry = array();
+
+        $counter = 1;
+        $maxHops = 0;
+
+        /*
+         * Author array of MediaWikiContributor objects with $this->users[$uid],
+         * where $uid is MediaWiki user_id.
+         *
+         * You may have to increase memory_limit value,
+         * but we’ll load this only once.
+         */
+        $users_file = DATA_DIR.'/users.json';
+        $users_loop = json_decode(file_get_contents($users_file), 1);
+
+        $this->users = array();
+        foreach ($users_loop as &$u) {
+            $uid = (int) $u["user_id"];
+            $this->users[$uid] = new MediaWikiContributor($u);
+            unset($u); // Dont fill too much memory, if that helps.
+        }
+        /* /Author array */
+
+        $file = DATA_DIR.'/dumps/main_full.xml';
+
+        $streamer = XmlStringStreamer::createStringWalkerParser($file);
 
         while ($node = $streamer->getNode()) {
             if ($maxHops > 0 && $maxHops === $counter) {
@@ -75,8 +90,25 @@ DESCR
             if (isset($pageNode->title)) {
 
                 $wikiDocument = new MediaWikiDocument($pageNode);
-
                 $wikiRevision = $wikiDocument->getLatest();
+
+                $contributor_name = $wikiRevision->getContributorName();
+                // An edge case where MediaWiki may give author as user_id 0, even though we dont have it
+                // so we’ll give the first user instead.
+                $contributor_id = ($wikiRevision->getContributorId() === 0)?1:$wikiRevision->getContributorId();
+
+                if (isset($this->users[$contributor_id])) {
+                    $contributor = $this->users[$contributor_id];
+                    if ($wikiRevision->getContributorId() === 0) {
+                        $contributor->setRealName($contributor_name);
+                    }
+                    $wikiRevision->setContributor($contributor, false);
+                } else {
+                    // Hopefully we won’t get any here!
+                    $problematic_author_entry[] = sprintf('%s (%d)', $contributor_name, $contributor_id);
+                }
+                $author = $wikiRevision->getAuthor();
+
                 $file = new FileGitCommit($wikiRevision);
                 $file->setFileName(MediaWikiDocument::toFileName($wikiDocument->getTitle()));
                 $file_path  = $file->getFileName();
@@ -87,11 +119,24 @@ DESCR
                 $is_translation = $wikiDocument->isTranslation();
                 $redirect = $wikiDocument->getRedirect();
                 $normalized_location = $file->getFileName();
+                $revision_id = $wikiRevision->getId();
+
+                $timestamp = $wikiRevision->getTimestamp()->format(\DateTime::RFC2822);
+                $comment = $wikiRevision->getComment();
 
                 $output->writeln(sprintf('"%s":', $title));
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
                 $output->writeln(sprintf('  - revisions: %d', $revs));
+                $output->writeln(sprintf('  - latest revision id: %d', $revision_id));
+                $output->writeln(sprintf('  - author username: %s', $contributor_name));
+                $output->writeln(sprintf('  - author user_id: %d', $contributor_id));
+                $output->writeln(sprintf('  - author: %s', (string) $author));
+                $output->writeln(sprintf('  - timestamp: %s', $timestamp));
+
+                if (!empty($comment)) {
+                    $output->writeln(sprintf('  - comment: %s', $comment));
+                }
 
                 $rev_count[] = $revs;
 
@@ -233,6 +278,17 @@ DESCR
         $output->writeln('Pages not in a directory:');
         foreach ($directlyOnRoot as $title) {
             $output->writeln(sprintf(' - %s', $title));
+        }
+
+        $output->writeln('');
+        $output->writeln('');
+        $output->writeln('---');
+        $output->writeln('');
+        $output->writeln('');
+
+        $output->writeln('Problematic authors (should be empty!):');
+        foreach ($problematic_author_entry as $a) {
+            $output->writeln(sprintf(' - %s', $a));
         }
 
         $output->writeln('');
