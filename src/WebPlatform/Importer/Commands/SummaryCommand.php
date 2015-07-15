@@ -50,6 +50,7 @@ DESCR
 
         $moreThanHundredRevs = array();
         $pages = array();
+        $translations = array();
 
         while ($node = $streamer->getNode()) {
             $pageNode = new SimpleXMLElement($node);
@@ -71,7 +72,11 @@ DESCR
                 $path .= (($wikiDocument->isTranslation()) ? null : '/index' ) . '.md';
 
                 if ($revs > 99) {
-                    $moreThanHundredRevs[] = $wikiDocument->getTitle();
+                    $moreThanHundredRevs[] = sprintf('%s (%d)', $title, $revs);
+                }
+
+                if ($wikiDocument->isTranslation()) {
+                    $translations[] = $title;
                 }
 
                 $output->writeln(sprintf('"%s":', $title));
@@ -94,6 +99,12 @@ DESCR
         $output->writeln('More than 100 revisions:');
         foreach ($moreThanHundredRevs as $r) {
             $output->writeln(sprintf('  - %s', $r));
+        }
+        $output->writeln('');
+
+        $output->writeln('Translation:');
+        foreach ($translations as $t) {
+            $output->writeln(sprintf('  - %s', $t));
         }
     }
 }
