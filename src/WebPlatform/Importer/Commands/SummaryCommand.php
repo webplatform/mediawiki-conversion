@@ -43,7 +43,7 @@ DESCR
         $header_style = new OutputFormatterStyle('white', 'black', array('bold'));
         $output->getFormatter()->setStyle('header', $header_style);
 
-        $file = DUMP_DIR.'/wpwiki_test.xml';
+        $file = DUMP_DIR.'/main_full.xml';
 
         $streamer = XmlStringStreamer::createStringWalkerParser($file);
         $this->converter = new MediaWikiToMarkdown;
@@ -55,6 +55,10 @@ DESCR
         $pages = array();
         $counter = 1;
         $maxHops = 0;
+
+        // Pages we have to make sure aren’t duplicate on the CMS prior
+        // to the final migration.
+        $temporary_acceptable_duplicates[] = 'css/selectors/pseudo-classes/:lang';
 
         while ($node = $streamer->getNode()) {
             if ($maxHops > 0 && $maxHops === $counter) {
@@ -127,9 +131,14 @@ DESCR
                 } elseif (!in_array($normalized_location, array_keys($pages))) {
                     // Pages we know has content, lets count them!
                     $pages[$normalized_location] = $title;
+                } elseif (in_array($title, $temporary_acceptable_duplicates)) {
+                    // Lets not throw, we got that covered.
                 } else {
                     // Hopefully we should never encounter this.
-                    throw new \Exception(sprintf("We have duplicate pages for %s, would be called %s", $title, $path));
+                    $previous = $pages[$normalized_location];
+                    $duplicatePagesExceptionText =  "We have duplicate entry for %s it "
+                                                   ."would be stored in %s which would override content of %s";
+                    throw new \Exception(sprintf($duplicatePagesExceptionText, $title, $file_path, $previous));
                 }
 
                 $output->writeln('');
