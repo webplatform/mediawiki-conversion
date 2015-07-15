@@ -43,16 +43,26 @@ DESCR
         $header_style = new OutputFormatterStyle('white', 'black', array('bold'));
         $output->getFormatter()->setStyle('header', $header_style);
 
-        $file = DUMP_DIR.'/main_full.xml';
+        $file = DUMP_DIR.'/wpwiki_test.xml';
 
         $streamer = XmlStringStreamer::createStringWalkerParser($file);
         $this->converter = new MediaWikiToMarkdown;
 
         $moreThanHundredRevs = array();
-        $pages = array();
         $translations = array();
+        $redirects = array();
+        $url_sanity_redirects = array();
+        $pages = array();
+        $counter = 1;
+        $maxHops = 0;
 
         while ($node = $streamer->getNode()) {
+            if ($maxHops > 0 && $maxHops === $counter) {
+                $output->writeln(sprintf('Reached desired maximum of %d loops', $maxHops));
+                $output->writeln('');
+                $output->writeln('');
+                break;
+            }
             $pageNode = new SimpleXMLElement($node);
             if (isset($pageNode->title)) {
 
@@ -61,50 +71,127 @@ DESCR
                 $wikiRevision = $wikiDocument->getLatest();
                 $file = new FileGitCommit($wikiRevision);
                 $file->setFileName(MediaWikiDocument::toFileName($wikiDocument->getTitle()));
-
-                $path  = $file->getFileName();
+                $file_path  = $file->getFileName();
+                $file_path .= (($wikiDocument->isTranslation()) ? null : '/index' ) . '.md';
 
                 $title = $wikiDocument->getTitle();
                 $revs  = $wikiDocument->getRevisions()->count();
-                $is_translation = $wikiDocument->isTranslation() === true ? 'Yes' : 'No';
-                $language_code = $wikiDocument->getLanguageCode();
+                $is_translation = $wikiDocument->isTranslation();
+                $redirect = $wikiDocument->getRedirect();
+                $normalized_location = $file->getFileName();
 
-                $path .= (($wikiDocument->isTranslation()) ? null : '/index' ) . '.md';
+                $output->writeln(sprintf('"%s":', $title));
+                $output->writeln(sprintf('  - normalized: %s', $normalized_location));
+                $output->writeln(sprintf('  - file: %s', $file_path));
+                $output->writeln(sprintf('  - revisions: %d', $revs));
 
                 if ($revs > 99) {
                     $moreThanHundredRevs[] = sprintf('%s (%d)', $title, $revs);
                 }
 
-                if ($wikiDocument->isTranslation()) {
+                if ($is_translation === true) {
+                    $output->writeln(sprintf('  - language_code: %s', $wikiDocument->getLanguageCode()));
                     $translations[] = $title;
                 }
 
-                $output->writeln(sprintf('"%s":', $title));
-                $output->writeln(sprintf('  - is_translation: %s', $is_translation));
-                $output->writeln(sprintf('  - language_code: %s', $language_code));
-                $output->writeln(sprintf('  - revisions: %d', $revs));
-                $output->writeln(sprintf('  - file_path: %s', $path));
-                $output->writeln('');
-                $output->writeln('');
+                // The ones with invalid URL characters that shouldn’t be part of
+                // a page name because they may confuse with their natural use (:,(,),!,?)
+                if ($title !== $normalized_location) {
+                    $url_sanity_redirects[$title] = $normalized_location;
+                }
 
-                if (!in_array($path, $pages)) {
-                    $pages[] = $path;
+                // We have a number of pages, some of them had been
+                // deleted or erased with a redirect left behind.
+                //
+                // Since we want to write to files all pages that currently
+                // has content into a filesystem, we have to generate a file
+                // name that can be stored into a filesystem. We therefore have
+                // to normalize the names.
+                //
+                // We don’t want to have two entries with the same name.
+                //
+                // If a redirect (i.e. an empty file) exist, let’s set keep it
+                // separate from the pages that still has content.
+                //
+                // Sanity check;
+                // 1. Get list of redirects
+                // 2. Get list of pages
+                //
+                // If we have a page duplicate, throw an exception!
+                if ($redirect !== false) {
+                    // Pages we know are redirects within MediaWiki, we won’t
+                    // pass them within the $pages aray because they would be
+                    // empty content with only a redirect anyway.
+                    $output->writeln(sprintf('  - redirect: %s', $redirect));
+                    $redirects[$normalized_location] = $redirect;
+                } elseif (!in_array($normalized_location, array_keys($pages))) {
+                    // Pages we know has content, lets count them!
+                    $pages[$normalized_location] = $title;
                 } else {
+                    // Hopefully we should never encounter this.
                     throw new \Exception(sprintf("We have duplicate pages for %s, would be called %s", $title, $path));
                 }
+
+                $output->writeln('');
+                $output->writeln('');
+                ++$counter;
             }
 
         }
 
-        $output->writeln('More than 100 revisions:');
+        $output->writeln('---');
+        $output->writeln('');
+        $output->writeln('');
+
+        $output->writeln('Pages with more than 100 revisions:');
         foreach ($moreThanHundredRevs as $r) {
             $output->writeln(sprintf('  - %s', $r));
         }
+
+        $output->writeln('');
+        $output->writeln('');
+        $output->writeln('---');
+        $output->writeln('');
         $output->writeln('');
 
-        $output->writeln('Translation:');
+        $output->writeln('Available translations:');
         foreach ($translations as $t) {
             $output->writeln(sprintf('  - %s', $t));
         }
+
+        $output->writeln('');
+        $output->writeln('');
+        $output->writeln('---');
+        $output->writeln('');
+        $output->writeln('');
+
+        $output->writeln('Redirects (from => to):');
+        foreach ($redirects as $url => $redirect_to) {
+            $output->writeln(sprintf(' - "%s": "%s"', $url, $redirect_to));
+        }
+
+        $output->writeln('');
+        $output->writeln('');
+        $output->writeln('---');
+        $output->writeln('');
+        $output->writeln('');
+
+        $output->writeln('URLs to return new Location (from => to):');
+        foreach ($url_sanity_redirects as $title => $sanitized) {
+            $output->writeln(sprintf(' - "%s": "%s"', $title, $sanitized));
+        }
+
+        $output->writeln('');
+        $output->writeln('');
+        $output->writeln('---');
+        $output->writeln('');
+        $output->writeln('');
+
+        $output->writeln('Summary:');
+        $output->writeln(sprintf('  - number of iterations: %d', $counter));
+        $output->writeln(sprintf('  - number of pages: %d', count($pages)));
+        $output->writeln(sprintf('  - number of redirects: %d', count($redirects)));
+        $output->writeln(sprintf('  - number of redirects for URL string sanity: %d', count($url_sanity_redirects)));
+
     }
 }
