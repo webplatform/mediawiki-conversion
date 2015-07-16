@@ -82,8 +82,7 @@ DESCR
         while ($node = $streamer->getNode()) {
             if ($maxHops > 0 && $maxHops === $counter) {
                 $output->writeln(sprintf('Reached desired maximum of %d loops', $maxHops));
-                $output->writeln('');
-                $output->writeln('');
+                $output->writeln(PHP_EOL.PHP_EOL);
                 break;
             }
             $pageNode = new SimpleXMLElement($node);
@@ -111,7 +110,7 @@ DESCR
 
                 $file = new FileGitCommit($wikiRevision);
                 $file->setFileName(MediaWikiDocument::toFileName($wikiDocument->getTitle()));
-                $file_path  = $file->getFileName();
+                $file_path  = 'content/' . $file->getFileName();
                 $file_path .= (($wikiDocument->isTranslation()) ? null : '/index' ) . '.md';
 
                 $title = $wikiDocument->getTitle();
@@ -122,20 +121,25 @@ DESCR
                 $revision_id = $wikiRevision->getId();
 
                 $timestamp = $wikiRevision->getTimestamp()->format(\DateTime::RFC2822);
-                $comment = $wikiRevision->getComment();
+                $commit_args = array();
+                foreach ($file->commitArgs() as $argName => $argVal) {
+                    $commit_args[] = sprintf(' --%s="%s"', $argName, (string) $argVal);
+                }
 
                 $output->writeln(sprintf('"%s":', $title));
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
                 $output->writeln(sprintf('  - revisions: %d', $revs));
-                $output->writeln(sprintf('  - latest revision id: %d', $revision_id));
-                $output->writeln(sprintf('  - author username: %s', $contributor_name));
-                $output->writeln(sprintf('  - author user_id: %d', $contributor_id));
-                $output->writeln(sprintf('  - author: %s', (string) $author));
-                $output->writeln(sprintf('  - timestamp: %s', $timestamp));
+                $output->writeln(sprintf('  - "latest revision id": %d', $revision_id));
+                $output->writeln(sprintf('  - "latest revision":'));
+                $output->writeln(sprintf('    - timestamp: %s', $timestamp));
+                $output->writeln(sprintf('    - user_id: %d', $contributor_id));
+                $output->writeln(sprintf('    - full_name: %s', $contributor_name));
+                $output->writeln(sprintf('    - author: %s', (string) $author));
+                $output->writeln(sprintf('    - commit: git add %s;git commit %s', $file_path, join(' ', $commit_args)));
 
                 if (!empty($comment)) {
-                    $output->writeln(sprintf('  - comment: %s', $comment));
+                    $output->writeln(sprintf('    - comment: %s', $comment));
                 }
 
                 $rev_count[] = $revs;
@@ -198,8 +202,7 @@ DESCR
                     throw new \Exception(sprintf($duplicatePagesExceptionText, $title, $file_path, $previous));
                 }
 
-                $output->writeln('');
-                $output->writeln('');
+                $output->writeln(PHP_EOL.PHP_EOL);
                 ++$counter;
             }
 
@@ -227,75 +230,53 @@ DESCR
             $edit_median = (($low+$high)/2);
         }
 
-        $output->writeln('---');
-        $output->writeln('');
-        $output->writeln('');
+        $output->writeln('---'.PHP_EOL.PHP_EOL);
 
         $output->writeln('Pages with more than 100 revisions:');
         foreach ($moreThanHundredRevs as $r) {
             $output->writeln(sprintf('  - %s', $r));
         }
 
-        $output->writeln('');
-        $output->writeln('');
-        $output->writeln('---');
-        $output->writeln('');
-        $output->writeln('');
+        $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
 
         $output->writeln('Available translations:');
         foreach ($translations as $t) {
             $output->writeln(sprintf('  - %s', $t));
         }
 
-        $output->writeln('');
-        $output->writeln('');
-        $output->writeln('---');
-        $output->writeln('');
-        $output->writeln('');
+        $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
 
         $output->writeln('Redirects (from => to):');
         foreach ($redirects as $url => $redirect_to) {
             $output->writeln(sprintf(' - "%s": "%s"', $url, $redirect_to));
         }
 
-        $output->writeln('');
-        $output->writeln('');
-        $output->writeln('---');
-        $output->writeln('');
-        $output->writeln('');
+        $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
 
         $output->writeln('URLs to return new Location (from => to):');
         foreach ($url_sanity_redirects as $title => $sanitized) {
             $output->writeln(sprintf(' - "%s": "%s"', $title, $sanitized));
         }
 
-        $output->writeln('');
-        $output->writeln('');
-        $output->writeln('---');
-        $output->writeln('');
-        $output->writeln('');
+        $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
 
         $output->writeln('Pages not in a directory:');
         foreach ($directlyOnRoot as $title) {
             $output->writeln(sprintf(' - %s', $title));
         }
 
-        $output->writeln('');
-        $output->writeln('');
-        $output->writeln('---');
-        $output->writeln('');
-        $output->writeln('');
+        $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
 
         $output->writeln('Problematic authors (should be empty!):');
-        foreach ($problematic_author_entry as $a) {
-            $output->writeln(sprintf(' - %s', $a));
+        if (count($problematic_author_entry) == 0) {
+            $output->writeln(' - None');
+        } else {
+            foreach ($problematic_author_entry as $a) {
+                $output->writeln(sprintf(' - %s', $a));
+            }
         }
 
-        $output->writeln('');
-        $output->writeln('');
-        $output->writeln('---');
-        $output->writeln('');
-        $output->writeln('');
+        $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
 
         $output->writeln('Numbers:');
         $output->writeln(sprintf('  - "iterations": %d', $counter));
