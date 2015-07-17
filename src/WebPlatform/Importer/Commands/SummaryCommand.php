@@ -2,15 +2,13 @@
 
 /**
  * WebPlatform MediaWiki Conversion.
- **/
+ */
 
 namespace WebPlatform\Importer\Commands;
 
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Formatter\OutputFormatterStyle;
-use Symfony\Component\Console\Input\InputOption;
 
 use WebPlatform\ContentConverter\Model\MediaWikiDocument;
 use WebPlatform\ContentConverter\Model\MediaWikiContributor;
@@ -25,6 +23,11 @@ use Symfony\Component\Filesystem\Filesystem;
 use Bit3\GitPhp\GitRepository;
 use Bit3\GitPhp\GitException;
 
+/**
+ * Read and create a summary from a MediaWiki dumpBackup XML file
+ *
+ * @author Renoir Boulanger <hello@renoirboulanger.com>
+ */
 class SummaryCommand extends Command
 {
     protected $users = array();
@@ -39,26 +42,24 @@ class SummaryCommand extends Command
     {
         $description = <<<DESCR
                 Walk through MediaWiki dumpBackup XML file,
-                summarize revisions and a suggested file name
-                to store on a filesystem.
+                summarize revisions give details about the
+                wiki contents.
+
+                - List all pages
+                - Which pages are translations
+                - Which pages are redirects
+                - Number of edits ("Revision") per page
+                - Edits average and median
+
 DESCR;
         $this
-            ->setName('mediawiki:run')
-            ->setDescription($description)
-            ->setDefinition(
-                [
-                    new InputOption('git', '', InputOption::VALUE_NONE, 'Whether or not to convert into a git repository ', null),
-                ]
-            );
-
+            ->setName('mediawiki:summary')
+            ->setDescription($description);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $header_style = new OutputFormatterStyle('white', 'black', array('bold'));
-        $output->getFormatter()->setStyle('header', $header_style);
-
-        $useGit = $input->getOption('git');
+        $useGit = false; // Change this to run export. This will change VERY soon!
 
         $moreThanHundredRevs = [];
         $translations = [];
@@ -75,9 +76,9 @@ DESCR;
 
         $problematic_author_entry = [];
 
-        $counter = 1;
-        $maxHops = 0;
-        $revMaxHops = 10;
+        $counter = 1;    // Increment the number of pages we are going through
+        $maxHops = 0;    // Maximum number of pages we go through
+        $revMaxHops = 0; // Maximum number of revisions per page we go through
 
         if ($useGit === true) {
             $this->filesystem = new Filesystem;
@@ -128,12 +129,21 @@ DESCR;
 
                 $file_path  = $persistable->getName();
 
-                $redirect = $wikiDocument->getRedirect();
+                $is_redirect = $wikiDocument->getRedirect(); // False if not a redirect, string if it is
                 $normalized_location = $persistable->getName();
 
                 $output->writeln(sprintf('"%s":', $title));
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
+
+                if ($is_redirect !== false) {
+                    $output->writeln(sprintf('  - redirect_to: %s', $is_redirect));
+                }
+
+                if ($is_translation === true) {
+                    $output->writeln(sprintf('  - lang: %s', $wikiDocument->getLanguageCode()));
+                }
+
                 $output->writeln(sprintf('  - revs: %d', $revs));
                 $output->writeln(sprintf('  - revisions:'));
 
@@ -143,7 +153,7 @@ DESCR;
                 /** ----------- REVISION --------------- */
                 for ($revisionsList->rewind(); $revisionsList->valid(); $revisionsList->next()) {
                     if ($revMaxHops > 0 && $revMaxHops === $revCounter) {
-                        $output->writeln(sprintf('    - stop: Reached maximum %d revision loops', $revMaxHops).PHP_EOL.PHP_EOL);
+                        $output->writeln(sprintf('    - stop: Reached maximum %d revisions', $revMaxHops).PHP_EOL.PHP_EOL);
                         break;
                     }
 
@@ -223,7 +233,7 @@ DESCR;
 
                 // Which pages are directly on /wiki/foo. Are there some we
                 // should move elsewhere such as the glossary items?
-                if (count(explode('/', $title)) == 1 && $redirect === false) {
+                if (count(explode('/', $title)) == 1 && $is_redirect === false) {
                     $directlyOnRoot[] = $title;
                 }
 
@@ -232,7 +242,6 @@ DESCR;
                 }
 
                 if ($is_translation === true) {
-                    $output->writeln(sprintf('  - language_code: %s', $wikiDocument->getLanguageCode()));
                     $translations[] = $title;
                 }
 
@@ -260,12 +269,11 @@ DESCR;
                 // 2. Get list of pages
                 //
                 // If we have a page duplicate, throw an exception!
-                if ($redirect !== false) {
+                if ($is_redirect !== false) {
                     // Pages we know are redirects within MediaWiki, we won’t
                     // pass them within the $pages aray because they would be
                     // empty content with only a redirect anyway.
-                    $output->writeln(sprintf('  - redirect: %s', $redirect));
-                    $redirects[$normalized_location] = $redirect;
+                    $redirects[$normalized_location] = $is_redirect;
                 } elseif (!in_array($normalized_location, array_keys($pages))) {
                     // Pages we know has content, lets count them!
                     $pages[$normalized_location] = $title;
