@@ -16,13 +16,23 @@ use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
 
 use SimpleXMLElement;
-use Prewk\XmlStringStreamer;
 use DateTime;
 use Exception;
+
+use Prewk\XmlStringStreamer;
+use Symfony\Component\Filesystem\Filesystem;
+use Bit3\GitPhp\GitRepository;
+use Bit3\GitPhp\GitException;
 
 class SummaryCommand extends Command
 {
     protected $users = array();
+
+    /** @var Symfony\Component\Filesystem\Filesystem Symfony Filesystem handler */
+    protected $filesystem;
+
+    /** @var Bit3\GitPhp\GitRepository Git Repository handler */
+    protected $git;
 
     protected function configure()
     {
@@ -41,35 +51,45 @@ DESCR;
         $header_style = new OutputFormatterStyle('white', 'black', array('bold'));
         $output->getFormatter()->setStyle('header', $header_style);
 
-        $moreThanHundredRevs = array();
-        $translations = array();
-        $redirects = array();
-        $sanity_redirs = array();
-        $pages = array();
-        $directlyOnRoot = array();
-        $rev_count = array(); // So we can know what’s the average
+        $this->filesystem = new Filesystem;
+
+        $repoInitialized = (realpath(GIT_OUTPUT_DIR.'/.git') === false)?false:true;
+        //die(var_dump(array($repoInitialized, realpath(GIT_OUTPUT_DIR))));
+        $this->git = new GitRepository(realpath(GIT_OUTPUT_DIR));
+        if ($repoInitialized === false) {
+            $this->git->init()->execute();
+        }
+
+        $moreThanHundredRevs = [];
+        $translations = [];
+        $redirects = [];
+        $sanity_redirs = [];
+        $pages = [];
+        $directlyOnRoot = [];
+        $rev_count = []; // So we can know what’s the average
 
         // Pages we have to make sure aren’t duplicate on the CMS prior
         // to the final migration.
-        $temporary_acceptable_duplicates = array();
+        $temporary_acceptable_duplicates = [];
         //$temporary_acceptable_duplicates[] = 'css/selectors/pseudo-classes/:lang'; // DONE
 
-        $problematic_author_entry = array();
+        $problematic_author_entry = [];
 
         $counter = 1;
-        $maxHops = 105;
+        $maxHops = 0;
+        $revMaxHops = 0;
 
-        /*
+        /**
          * Author array of MediaWikiContributor objects with $this->users[$uid],
          * where $uid is MediaWiki user_id.
          *
          * You may have to increase memory_limit value,
          * but we’ll load this only once.
-         */
+         **/
         $users_file = DATA_DIR.'/users.json';
         $users_loop = json_decode(file_get_contents($users_file), 1);
 
-        $this->users = array();
+        $this->users = [];
         foreach ($users_loop as &$u) {
             $uid = (int) $u["user_id"];
             $this->users[$uid] = new MediaWikiContributor($u);
@@ -80,28 +100,22 @@ DESCR;
         $file = DATA_DIR.'/dumps/main_full.xml';
         $streamer = XmlStringStreamer::createStringWalkerParser($file);
 
-        //use Symfony\Component\Filesystem\Filesystem;
-        //$filesystem = new Filesystem;
-        //$filesystem->dumpFile($document->getName(), $revision->getContent());
-
         while ($node = $streamer->getNode()) {
             if ($maxHops > 0 && $maxHops === $counter) {
-                $output->writeln(sprintf('Reached desired maximum of %d loops', $maxHops));
-                $output->writeln(PHP_EOL.PHP_EOL);
+                $output->writeln(sprintf('Reached desired maximum of %d loops', $maxHops).PHP_EOL.PHP_EOL);
                 break;
             }
             $pageNode = new SimpleXMLElement($node);
             if (isset($pageNode->title)) {
 
                 $wikiDocument = new MediaWikiDocument($pageNode);
-                $persistable = new GitCommitFileRevision($wikiDocument);
+                $persistable = new GitCommitFileRevision($wikiDocument, 'out/content/', '.md');
 
                 $title = $wikiDocument->getTitle();
                 $revs  = $wikiDocument->getRevisions()->count();
                 $is_translation = $wikiDocument->isTranslation();
 
                 $file_path  = $persistable->getName();
-                $file_path .= (($wikiDocument->isTranslation()) ? null : '/index' ) . '.md';
 
                 $redirect = $wikiDocument->getRedirect();
                 $normalized_location = $persistable->getName();
@@ -113,9 +127,14 @@ DESCR;
                 $output->writeln(sprintf('  - revisions:'));
 
                 $revisionsList = $wikiDocument->getRevisions();
+                $revCounter = 0;
 
                 /** ----------- REVISION --------------- */
                 for ($revisionsList->rewind(); $revisionsList->valid(); $revisionsList->next()) {
+                    if ($revMaxHops > 0 && $revMaxHops === $revCounter) {
+                        $output->writeln(sprintf('Reached desired maximum of %d revision loops', $revMaxHops).PHP_EOL.PHP_EOL);
+                        break;
+                    }
 
                     $wikiRevision = $revisionsList->current();
                     $revision_id = $wikiRevision->getId();
@@ -132,15 +151,18 @@ DESCR;
                         $wikiRevision->setContributor($contributor, false);
                     } else {
                         // Hopefully we won’t get any here!
-                        $problematic_author_entry[] = sprintf(' - {revision_id: %d, contributor_id: %d}', $revision_id, $contributor_id);
+                        $problematic_author_entry[] = sprintf('{revision_id: %d, contributor_id: %d}', $revision_id, $contributor_id);
                     }
                     $author = $wikiRevision->getAuthor();
-                    $contributor_name = $author->getRealName();
+                    $contributor_name = (is_object($author))?$author->getRealName():'No real name set';
 
                     $timestamp = $wikiRevision->getTimestamp()->format(DateTime::RFC2822);
 
                     $persistable->setRevision($wikiRevision);
                     $commit_commands = $persistable->formatPersisterCommand();
+                    $commit_args = $persistable->getArgs();
+
+                    $this->filesystem->dumpFile($persistable->getName(), (string) $persistable);
 
                     $output->writeln(sprintf('    - id: %d', $revision_id));
                     $output->writeln(sprintf('      timestamp: %s', $timestamp));
@@ -149,6 +171,34 @@ DESCR;
                     $output->writeln(sprintf('      user_id: %d', $contributor_id));
                     $output->writeln(sprintf('      commit: %s', join(' ; ', $commit_commands)));
 
+                    try {
+                        $this->git
+                            // Make sure out/ matches what we set at GitCommitFileRevision constructor.
+                            ->add()
+                            ->execute(preg_replace('/^out\//', '', $persistable->getName()));
+                    } catch (GitException $e) {
+                        $message = sprintf('Could not add file %s for revision %d', $persistable->getName(), $revision_id);
+                        throw new Exception($message, null, $e);
+                    }
+
+                    try {
+                        $this->git
+                            ->commit()
+                            ->message('"'.$wikiRevision->getComment().'"')
+                            ->author('"'.(string) $author.'"')
+                            ->date('"'.$timestamp.'"')
+                            ->allowEmpty()
+                            ->execute();
+
+                    } catch (GitException $e) {
+                        var_dump($this->git);
+                        $message = sprintf('Could not commit for revision %d', $revision_id);
+                        throw new Exception($message, null, $e);
+                    }
+
+                    //die(var_dump($this->git));
+
+                    ++$revCounter;
                 }
 
                 /** ----------- REVISION --------------- */

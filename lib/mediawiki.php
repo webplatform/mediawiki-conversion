@@ -17,3 +17,5 @@ $_SERVER['REMOTE_ADDR']='127.0.0.1';
 
 //define('DATA_DIR', '/vagrant/mediawiki-conversion/data');
 define('DATA_DIR', '/Users/renoirb/workspaces/webplatform/service-wiki/mediawiki-conversion/data');
+//define('DATA_DIR', '/vagrant/mediawiki-conversion/out');
+define('GIT_OUTPUT_DIR', '/Users/renoirb/workspaces/webplatform/service-wiki/mediawiki-conversion/out');

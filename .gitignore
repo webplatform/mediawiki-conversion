@@ -3,3 +3,4 @@ vendor/
 phpunit.xml
 bin/
 src/WebPlatform/ContentConverter/
+out/
