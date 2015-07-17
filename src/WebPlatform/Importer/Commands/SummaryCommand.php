@@ -12,11 +12,13 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 
 use WebPlatform\ContentConverter\Model\MediaWikiDocument;
-use WebPlatform\ContentConverter\Entity\MediaWikiContributor;
-use WebPlatform\ContentConverter\Persistency\FileGitCommit;
+use WebPlatform\ContentConverter\Model\MediaWikiContributor;
+use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
 
 use SimpleXMLElement;
 use Prewk\XmlStringStreamer;
+use DateTime;
+use Exception;
 
 class SummaryCommand extends Command
 {
@@ -24,14 +26,14 @@ class SummaryCommand extends Command
 
     protected function configure()
     {
-        $this
-            ->setName('mediawiki:summary')
-            ->setDescription(<<<DESCR
+        $description = <<<DESCR
                 Walk through MediaWiki dumpBackup XML file,
                 summarize revisions and a suggested file name
                 to store on a filesystem.
-DESCR
-            );
+DESCR;
+        $this
+            ->setName('mediawiki:summary')
+            ->setDescription($description);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -42,7 +44,7 @@ DESCR
         $moreThanHundredRevs = array();
         $translations = array();
         $redirects = array();
-        $url_sanity_redirects = array();
+        $sanity_redirs = array();
         $pages = array();
         $directlyOnRoot = array();
         $rev_count = array(); // So we can know what’s the average
@@ -55,7 +57,7 @@ DESCR
         $problematic_author_entry = array();
 
         $counter = 1;
-        $maxHops = 0;
+        $maxHops = 105;
 
         /*
          * Author array of MediaWikiContributor objects with $this->users[$uid],
@@ -76,8 +78,11 @@ DESCR
         /* /Author array */
 
         $file = DATA_DIR.'/dumps/main_full.xml';
-
         $streamer = XmlStringStreamer::createStringWalkerParser($file);
+
+        //use Symfony\Component\Filesystem\Filesystem;
+        //$filesystem = new Filesystem;
+        //$filesystem->dumpFile($document->getName(), $revision->getContent());
 
         while ($node = $streamer->getNode()) {
             if ($maxHops > 0 && $maxHops === $counter) {
@@ -89,58 +94,64 @@ DESCR
             if (isset($pageNode->title)) {
 
                 $wikiDocument = new MediaWikiDocument($pageNode);
-                $wikiRevision = $wikiDocument->getLatest();
-
-                $contributor_name = $wikiRevision->getContributorName();
-                // An edge case where MediaWiki may give author as user_id 0, even though we dont have it
-                // so we’ll give the first user instead.
-                $contributor_id = ($wikiRevision->getContributorId() === 0)?1:$wikiRevision->getContributorId();
-
-                if (isset($this->users[$contributor_id])) {
-                    $contributor = $this->users[$contributor_id];
-                    if ($wikiRevision->getContributorId() === 0) {
-                        $contributor->setRealName($contributor_name);
-                    }
-                    $wikiRevision->setContributor($contributor, false);
-                } else {
-                    // Hopefully we won’t get any here!
-                    $problematic_author_entry[] = sprintf('%s (%d)', $contributor_name, $contributor_id);
-                }
-                $author = $wikiRevision->getAuthor();
-
-                $file = new FileGitCommit($wikiRevision);
-                $file->setFileName(MediaWikiDocument::toFileName($wikiDocument->getTitle()));
-                $file_path  = 'content/' . $file->getFileName();
-                $file_path .= (($wikiDocument->isTranslation()) ? null : '/index' ) . '.md';
+                $persistable = new GitCommitFileRevision($wikiDocument);
 
                 $title = $wikiDocument->getTitle();
                 $revs  = $wikiDocument->getRevisions()->count();
                 $is_translation = $wikiDocument->isTranslation();
-                $redirect = $wikiDocument->getRedirect();
-                $normalized_location = $file->getFileName();
-                $revision_id = $wikiRevision->getId();
 
-                $timestamp = $wikiRevision->getTimestamp()->format(\DateTime::RFC2822);
-                $commit_args = array();
-                foreach ($file->commitArgs() as $argName => $argVal) {
-                    $commit_args[] = sprintf(' --%s="%s"', $argName, (string) $argVal);
-                }
+                $file_path  = $persistable->getName();
+                $file_path .= (($wikiDocument->isTranslation()) ? null : '/index' ) . '.md';
+
+                $redirect = $wikiDocument->getRedirect();
+                $normalized_location = $persistable->getName();
 
                 $output->writeln(sprintf('"%s":', $title));
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
-                $output->writeln(sprintf('  - revisions: %d', $revs));
-                $output->writeln(sprintf('  - "latest revision id": %d', $revision_id));
-                $output->writeln(sprintf('  - "latest revision":'));
-                $output->writeln(sprintf('    - timestamp: %s', $timestamp));
-                $output->writeln(sprintf('    - user_id: %d', $contributor_id));
-                $output->writeln(sprintf('    - full_name: %s', $contributor_name));
-                $output->writeln(sprintf('    - author: %s', (string) $author));
-                $output->writeln(sprintf('    - commit: git add %s;git commit %s', $file_path, join(' ', $commit_args)));
+                $output->writeln(sprintf('  - revs: %d', $revs));
+                $output->writeln(sprintf('  - revisions:'));
 
-                if (!empty($comment)) {
-                    $output->writeln(sprintf('    - comment: %s', $comment));
+                $revisionsList = $wikiDocument->getRevisions();
+
+                /** ----------- REVISION --------------- */
+                for ($revisionsList->rewind(); $revisionsList->valid(); $revisionsList->next()) {
+
+                    $wikiRevision = $revisionsList->current();
+                    $revision_id = $wikiRevision->getId();
+
+                    // An edge case where MediaWiki may give author as user_id 0, even though we dont have it
+                    // so we’ll give the first user instead.
+                    $contributor_id = ($wikiRevision->getContributorId() === 0)?1:$wikiRevision->getContributorId();
+
+                    if (isset($this->users[$contributor_id])) {
+                        $contributor = $this->users[$contributor_id];
+                        if ($wikiRevision->getContributorId() === 0) {
+                            $contributor->setRealName($wikiRevision->getContributorName());
+                        }
+                        $wikiRevision->setContributor($contributor, false);
+                    } else {
+                        // Hopefully we won’t get any here!
+                        $problematic_author_entry[] = sprintf(' - {revision_id: %d, contributor_id: %d}', $revision_id, $contributor_id);
+                    }
+                    $author = $wikiRevision->getAuthor();
+                    $contributor_name = $author->getRealName();
+
+                    $timestamp = $wikiRevision->getTimestamp()->format(DateTime::RFC2822);
+
+                    $persistable->setRevision($wikiRevision);
+                    $commit_commands = $persistable->formatPersisterCommand();
+
+                    $output->writeln(sprintf('    - id: %d', $revision_id));
+                    $output->writeln(sprintf('      timestamp: %s', $timestamp));
+                    $output->writeln(sprintf('      full_name: %s', $contributor_name));
+                    $output->writeln(sprintf('      author: %s', (string) $author));
+                    $output->writeln(sprintf('      user_id: %d', $contributor_id));
+                    $output->writeln(sprintf('      commit: %s', join(' ; ', $commit_commands)));
+
                 }
+
+                /** ----------- REVISION --------------- */
 
                 $rev_count[] = $revs;
 
@@ -162,7 +173,7 @@ DESCR
                 // The ones with invalid URL characters that shouldn’t be part of
                 // a page name because they may confuse with their natural use (:,(,),!,?)
                 if ($title !== $normalized_location) {
-                    $url_sanity_redirects[$title] = $normalized_location;
+                    $sanity_redirs[$title] = $normalized_location;
                 }
 
                 // We have a number of pages, some of them had been
@@ -199,7 +210,7 @@ DESCR
                     $previous = $pages[$normalized_location];
                     $duplicatePagesExceptionText =  "We have duplicate entry for %s it "
                                                    ."would be stored in %s which would override content of %s";
-                    throw new \Exception(sprintf($duplicatePagesExceptionText, $title, $file_path, $previous));
+                    throw new Exception(sprintf($duplicatePagesExceptionText, $title, $file_path, $previous));
                 }
 
                 $output->writeln(PHP_EOL.PHP_EOL);
@@ -254,7 +265,7 @@ DESCR
         $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
 
         $output->writeln('URLs to return new Location (from => to):');
-        foreach ($url_sanity_redirects as $title => $sanitized) {
+        foreach ($sanity_redirs as $title => $sanitized) {
             $output->writeln(sprintf(' - "%s": "%s"', $title, $sanitized));
         }
 
@@ -284,7 +295,7 @@ DESCR
         $output->writeln(sprintf('  - "redirects": %d', count($redirects)));
         $output->writeln(sprintf('  - "translated": %d', count($translations)));
         $output->writeln(sprintf('  - "not in a directory": %d', count($directlyOnRoot)));
-        $output->writeln(sprintf('  - "redirects for URL sanity": %d', count($url_sanity_redirects)));
+        $output->writeln(sprintf('  - "redirects for URL sanity": %d', count($sanity_redirs)));
         $output->writeln(sprintf('  - "edits average": %d', $edit_average));
         $output->writeln(sprintf('  - "edits median": %d', $edit_median));
 

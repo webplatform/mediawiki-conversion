@@ -8,8 +8,6 @@
         "prewk/xml-string-streamer": "^0.7.1",
         "symfony/console": "~2.7",
         "symfony/filesystem": "~2.7",
-        "symfony/finder": "~2.7",
-        "symfony/http-foundation": "~2.7",
         "symfony/process": "~2.7"
     },
     "require-dev": {
@@ -26,7 +24,7 @@
     "repositories": [
         {
             "type": "git",
-            "url": "https://github.com/webplatform/mediawiki-transformer.git"
+            "url": "https://github.com/webplatform/content-converter.git"
         },
         {
             "type": "git",
