@@ -340,13 +340,11 @@ DESCR;
         $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
 
         $output->writeln('URLs to make consistent:');
-        $depth = 1;
         foreach ($titleMatrix as $level) {
-            $output->writeln('  - level:');
+            $output->writeln('  level:');
             foreach ($level as $k => $v) {
-                $output->writeln(sprintf('    %s: %s', $k, $v));
+                $output->writeln(sprintf('    - %s', $v));
             }
-            ++$depth;
         }
 
     }
