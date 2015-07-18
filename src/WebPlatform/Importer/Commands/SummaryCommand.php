@@ -63,7 +63,7 @@ DESCR;
         $redirects = [];
         $pages = [];
         $problematic_author_entry = [];
-        $titleMatrix = [];
+        $urlParts = [];
 
         $moreThanHundredRevs = [];
         $translations = [];
@@ -120,7 +120,7 @@ DESCR;
                     if (preg_match('/\.md$/', $urlPart) === 0 && $urlDepth > 1) {
                         // Lets grab only after out/content, see also GitCommitFileRevision
                         // constructor arguments.
-                        $titleMatrix[$urlDepth][strtolower($urlPart)] = $urlPart;
+                        $urlParts[strtolower($urlPart)] = $urlPart;
                     }
                 }
 
@@ -183,10 +183,10 @@ DESCR;
                     $comment_shorter = mb_strimwidth($comment, strpos($comment, ': ') + 2, 100);
 
                     $output->writeln(sprintf('    - id: %d', $revision_id));
-                    $output->writeln(sprintf('      timestamp: %s', $timestamp));
-                    $output->writeln(sprintf('      full_name: %s', $contributor_name));
-                    $output->writeln(sprintf('      author: %s', $author_string));
-                    $output->writeln(sprintf('      comment: %s', $comment_shorter));
+                    $output->writeln(sprintf('      timestamp: "%s"', $timestamp));
+                    $output->writeln(sprintf('      full_name: "%s"', $contributor_name));
+                    $output->writeln(sprintf('      author: "%s"', $author_string));
+                    $output->writeln(sprintf('      comment: "%s"', $comment_shorter));
 
                     ++$revCounter;
                 }
@@ -339,12 +339,9 @@ DESCR;
 
         $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
 
-        $output->writeln('URLs to make consistent:');
-        foreach ($titleMatrix as $level) {
-            $output->writeln('  level:');
-            foreach ($level as $k => $v) {
-                $output->writeln(sprintf('    - %s', $v));
-            }
+        $output->writeln('URL words we have to ensure are consistent:');
+        foreach ($urlParts as $word) {
+            $output->writeln(sprintf('  - %s', $word));
         }
 
     }
