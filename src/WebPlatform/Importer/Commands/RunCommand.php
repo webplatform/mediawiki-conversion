@@ -10,6 +10,10 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Filesystem\Filesystem;
+use Prewk\XmlStringStreamer;
+use Bit3\GitPhp\GitRepository;
+use Bit3\GitPhp\GitException;
 
 use WebPlatform\ContentConverter\Model\MediaWikiDocument;
 use WebPlatform\ContentConverter\Model\MediaWikiContributor;
@@ -18,11 +22,6 @@ use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
 use SimpleXMLElement;
 use DateTime;
 use Exception;
-
-use Prewk\XmlStringStreamer;
-use Symfony\Component\Filesystem\Filesystem;
-use Bit3\GitPhp\GitRepository;
-use Bit3\GitPhp\GitException;
 
 /**
  * Read and create a summary from a MediaWiki dumpBackup XML file
@@ -63,6 +62,9 @@ DESCR;
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->users = [];
+        $this->filesystem = new Filesystem;
+
         $useGit = $input->getOption('git');
         $maxHops = (int) $input->getOption('max-pages');    // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
@@ -73,8 +75,6 @@ DESCR;
         $problematic_author_entry = [];
 
         if ($useGit === true) {
-            $this->filesystem = new Filesystem;
-
             $repoInitialized = (realpath(GIT_OUTPUT_DIR.'/.git') === false)?false:true;
             //die(var_dump(array($repoInitialized, realpath(GIT_OUTPUT_DIR))));
             $this->git = new GitRepository(realpath(GIT_OUTPUT_DIR));
@@ -94,7 +94,6 @@ DESCR;
         $users_file = DATA_DIR.'/users.json';
         $users_loop = json_decode(file_get_contents($users_file), 1);
 
-        $this->users = [];
         foreach ($users_loop as &$u) {
             $uid = (int) $u["user_id"];
             $this->users[$uid] = new MediaWikiContributor($u);

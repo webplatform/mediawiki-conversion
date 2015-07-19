@@ -10,6 +10,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Filesystem\Filesystem;
 use Prewk\XmlStringStreamer;
 
 use WebPlatform\ContentConverter\Model\MediaWikiDocument;
@@ -28,6 +29,9 @@ use Exception;
 class SummaryCommand extends Command
 {
     protected $users = array();
+
+    /** @var Symfony\Component\Filesystem\Filesystem Symfony Filesystem handler */
+    protected $filesystem;
 
     protected function configure()
     {
@@ -56,6 +60,9 @@ DESCR;
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->filesystem = new Filesystem;
+        $this->users = [];
+
         $maxHops = (int) $input->getOption('max-pages');    // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
 
@@ -87,7 +94,6 @@ DESCR;
         $users_file = DATA_DIR.'/users.json';
         $users_loop = json_decode(file_get_contents($users_file), 1);
 
-        $this->users = [];
         foreach ($users_loop as &$u) {
             $uid = (int) $u["user_id"];
             $this->users[$uid] = new MediaWikiContributor($u);
@@ -279,70 +285,33 @@ DESCR;
             $edit_median = (($low+$high)/2);
         }
 
-        $output->writeln('---'.PHP_EOL.PHP_EOL);
+        $numbers = array('Numbers:');
+        $numbers[] = sprintf('  - "iterations": %d', $counter);
+        $numbers[] = sprintf('  - "content pages": %d', count($pages));
+        $numbers[] = sprintf('  - "redirects": %d', count($redirects));
+        $numbers[] = sprintf('  - "translated": %d', count($translations));
+        $numbers[] = sprintf('  - "not in a directory": %d', count($directlyOnRoot));
+        $numbers[] = sprintf('  - "redirects for URL sanity": %d', count($sanity_redirs));
+        $numbers[] = sprintf('  - "edits average": %d', $edit_average);
+        $numbers[] = sprintf('  - "edits median": %d', $edit_median);
+        $this->filesystem->dumpFile('out/numbers.txt', implode($numbers, PHP_EOL));
 
-        $output->writeln('Pages with more than 100 revisions:');
-        foreach ($moreThanHundredRevs as $r) {
-            $output->writeln(sprintf('  - %s', $r));
-        }
+        $this->filesystem->dumpFile("out/hundred_revs.txt", implode($moreThanHundredRevs, PHP_EOL));
+        $this->filesystem->dumpFile("out/translations.txt", implode($translations, PHP_EOL));
+        $this->filesystem->dumpFile("out/directly_on_root.txt", implode($directlyOnRoot, PHP_EOL));
+        $this->filesystem->dumpFile("out/problematic_authors.txt", implode($problematic_author_entry, PHP_EOL));
+        $this->filesystem->dumpFile("out/url_parts.txt", implode($urlParts, PHP_EOL));
 
-        $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
-
-        $output->writeln('Available translations:');
-        foreach ($translations as $t) {
-            $output->writeln(sprintf('  - %s', $t));
-        }
-
-        $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
-
-        $output->writeln('Redirects (from => to):');
-        foreach ($redirects as $url => $redirect_to) {
-            $output->writeln(sprintf(' - "%s": "%s"', $url, $redirect_to));
-        }
-
-        $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
-
-        $output->writeln('URLs to return new Location (from => to):');
+        $sanity_redirects_out = array('URLs to return new Location (from => to):');
         foreach ($sanity_redirs as $title => $sanitized) {
-            $output->writeln(sprintf(' - "%s": "%s"', $title, $sanitized));
+            $sanity_redirects_out[] = sprintf(' - "%s": "%s"', $title, $sanitized);
         }
+        $this->filesystem->dumpFile("out/sanity_redirects.txt", implode($sanity_redirects_out, PHP_EOL));
 
-        $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
-
-        $output->writeln('Pages not in a directory:');
-        foreach ($directlyOnRoot as $title) {
-            $output->writeln(sprintf(' - %s', $title));
+        $redirects_out = array('Redirects (from => to):');
+        foreach ($redirects as $url => $redirect_to) {
+            $redirects_out[] = sprintf(' - "%s": "%s"', $url, $redirect_to);
         }
-
-        $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
-
-        $output->writeln('Problematic authors (should be empty!):');
-        if (count($problematic_author_entry) == 0) {
-            $output->writeln(' - None');
-        } else {
-            foreach ($problematic_author_entry as $a) {
-                $output->writeln(sprintf(' - %s', $a));
-            }
-        }
-
-        $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
-
-        $output->writeln('Numbers:');
-        $output->writeln(sprintf('  - "iterations": %d', $counter));
-        $output->writeln(sprintf('  - "content pages": %d', count($pages)));
-        $output->writeln(sprintf('  - "redirects": %d', count($redirects)));
-        $output->writeln(sprintf('  - "translated": %d', count($translations)));
-        $output->writeln(sprintf('  - "not in a directory": %d', count($directlyOnRoot)));
-        $output->writeln(sprintf('  - "redirects for URL sanity": %d', count($sanity_redirs)));
-        $output->writeln(sprintf('  - "edits average": %d', $edit_average));
-        $output->writeln(sprintf('  - "edits median": %d', $edit_median));
-
-        $output->writeln(PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL);
-
-        $output->writeln('URL words we have to ensure are consistent:');
-        foreach ($urlParts as $word) {
-            $output->writeln(sprintf('  - %s', $word));
-        }
-
+        $this->filesystem->dumpFile("out/redirects.txt", implode($redirects_out, PHP_EOL));
     }
 }
