@@ -55,7 +55,7 @@ DESCR;
                 [
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per document ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of documents', 0),
-                    new InputOption('git', '', InputOption::VALUE_NONE, 'Do run git import (write to filesystem is implicit), defaults to false', false),
+                    new InputOption('git', '', InputOption::VALUE_NONE, 'Do run git import (write to filesystem is implicit), defaults to false'),
                 ]
             );
     }
@@ -69,10 +69,11 @@ DESCR;
         $maxHops = (int) $input->getOption('max-pages');    // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
 
-        $counter = 1;    // Increment the number of pages we are going through
+        $counter = 0;    // Increment the number of pages we are going through
         $redirects = [];
         $pages = [];
-        $problematic_author_entry = [];
+        $problematicAuthors = [];
+        $urlParts = [];
 
         if ($useGit === true) {
             $repoInitialized = (realpath(GIT_OUTPUT_DIR.'/.git') === false)?false:true;
@@ -118,7 +119,7 @@ DESCR;
                 $persistable = new GitCommitFileRevision($wikiDocument, 'out/content/', '.md');
 
                 $title = $wikiDocument->getTitle();
-                $normalized_location = $persistable->getName();
+                $normalized_location = $wikiDocument->getName();
                 $file_path  = $persistable->getName();
                 $is_redirect = $wikiDocument->getRedirect(); // False if not a redirect, string if it is
 
@@ -139,11 +140,17 @@ DESCR;
                     $output->writeln(sprintf('  - lang: %s', $language_code));
                 }
 
+                foreach (explode("/", $normalized_location) as $urlDepth => $urlPart) {
+                    $urlParts[strtolower($urlPart)] = $urlPart;
+                }
+
+                $output->writeln(sprintf('  - index: %d', $counter));
                 $output->writeln(sprintf('  - revs: %d', $revs));
                 $output->writeln(sprintf('  - revisions:'));
 
                 $revList = $wikiDocument->getRevisions();
-                $revCounter = 1;
+                $revLast = $wikiDocument->getLatest();
+                $revCounter = 0;
 
                 /** ----------- REVISION --------------- **/
                 for ($revList->rewind(); $revList->valid(); $revList->next()) {
@@ -160,39 +167,37 @@ DESCR;
                     // so we’ll give the first user instead.
                     $contributor_id = ($wikiRevision->getContributorId() === 0)?1:$wikiRevision->getContributorId();
                     if (isset($this->users[$contributor_id])) {
-                        $contributor = $this->users[$contributor_id];
-                        if ($wikiRevision->getContributorId() === 0) {
-                            $contributor->setRealName($wikiRevision->getContributorName());
-                        }
+                        $contributor = clone $this->users[$contributor_id]; // We want a copy, because its specific to here only anyway.
                         $wikiRevision->setContributor($contributor, false);
                     } else {
-                        // Hopefully we won’t get any here!
-                        $problematic_author_entry[] = sprintf('{revision_id: %d, contributor_id: %d}', $revision_id, $contributor_id);
+                        // In case we didn’t find data for $this->users[$contributor_id]
+                        $contributor = clone $this->users[1]; // We want a copy, because its specific to here only anyway.
+                        $wikiRevision->setContributor($contributor, false);
                     }
                     /** -------------------- /Author -------------------- **/
 
-                    $author = $wikiRevision->getAuthor();
-                    $contributor_name = (is_object($author))?$author->getRealName():'Anonymous Contributor';
-                    $author_string = (string) $author;
-                    $author_string = (empty($author_string))?$contributor_name.' <public-webplatform@w3.org>':$author_string;
+                    $author_string = (string) $wikiRevision->getContributor();
                     $timestamp = $wikiRevision->getTimestamp()->format(DateTime::RFC2822);
 
                     $comment = $wikiRevision->getComment();
                     $comment_shorter = mb_strimwidth($comment, strpos($comment, ': ') + 2, 100);
 
-                    $persistable->setRevision($wikiRevision);
+                    $output->writeln(sprintf('    - id: %d', $revision_id));
+                    $output->writeln(sprintf('      rev_counter: %d', $revCounter));
+                    $output->writeln(sprintf('      timestamp: "%s"', $timestamp));
+                    $output->writeln(sprintf('      author: "%s"', $author_string));
+                    $output->writeln(sprintf('      comment: "%s"', $comment_shorter));
 
-                    if ($useGit === true) {
-                        $this->filesystem->dumpFile($persistable->getName(), (string) $persistable);
+                    $removeFile = false;
+                    if ($revLast->getId() === $wikiRevision->getId() && $wikiDocument->hasRedirect()) {
+                        $output->writeln('      is_last_and_has_redirect: True');
+                        $removeFile = true;
                     }
 
-                    $output->writeln(sprintf('    - id: %d', $revision_id));
-                    $output->writeln(sprintf('      timestamp: %s', $timestamp));
-                    $output->writeln(sprintf('      full_name: %s', $contributor_name));
-                    $output->writeln(sprintf('      author: %s', $author_string));
-                    $output->writeln(sprintf('      comment: %s', $comment_shorter));
-
                     if ($useGit === true) {
+                        $persistable->setRevision($wikiRevision);
+
+                        $this->filesystem->dumpFile($persistable->getName(), (string) $persistable);
                         try {
                             $this->git
                                 ->add()
@@ -216,6 +221,28 @@ DESCR;
                             var_dump($this->git);
                             $message = sprintf('Could not commit for revision %d', $revision_id);
                             throw new Exception($message, null, $e);
+                        }
+
+                        if ($removeFile === true) {
+                            try {
+                                $this->git
+                                    ->rm()
+                                    // Make sure out/ matches what we set at GitCommitFileRevision constructor.
+                                    ->execute(preg_replace('/^out\//', '', $persistable->getName()));
+                            } catch (GitException $e) {
+                                $message = sprintf('Could remove %s at revision %d', $persistable->getName(), $revision_id);
+                                throw new Exception($message, null, $e);
+                            }
+
+                            $this->git
+                                ->commit()
+                                ->message('"Remove file; '.$comment.'"')
+                                ->author('"'.$author_string.'"')
+                                ->date('"'.$timestamp.'"')
+                                ->allowEmpty()
+                                ->execute();
+
+                            $this->filesystem->remove($persistable->getName());
                         }
                     }
 
