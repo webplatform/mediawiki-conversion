@@ -73,6 +73,7 @@ DESCR;
         $pages = [];
         $problematicAuthors = [];
         $urlParts = [];
+        $urlsWithContent = [];
 
         $moreThanHundredRevs = [];
         $translations = [];
@@ -137,14 +138,18 @@ DESCR;
 
                 if ($is_redirect !== false) {
                     $output->writeln(sprintf('  - redirect_to: %s', $is_redirect));
+                } else {
+                    $urlsWithContent[] = $title;
+                    foreach (explode("/", $normalized_location) as $urlDepth => $urlPart) {
+                        $urlPartKey = strtolower($urlPart);
+                        $urlParts[$urlPartKey] = $urlPart;
+                        $urlPartsAll[$urlPartKey][] = $urlPart;
+                    }
+
                 }
 
                 if ($is_translation === true) {
                     $output->writeln(sprintf('  - lang: %s (%s)', $language_code, $language_name));
-                }
-
-                foreach (explode("/", $normalized_location) as $urlDepth => $urlPart) {
-                    $urlParts[strtolower($urlPart)] = $urlPart;
                 }
 
                 $output->writeln(sprintf('  - revs: %d', $revs));
@@ -303,22 +308,36 @@ DESCR;
         $this->filesystem->dumpFile("data/problematic_authors.txt", implode($problematicAuthors, PHP_EOL));
 
         natcasesort($translations);
-        $this->filesystem->dumpFile("data/translations.txt", implode($translations, PHP_EOL));
+        $this->filesystem->dumpFile("data/translations.txt", implode(PHP_EOL, $translations));
         natcasesort($directlyOnRoot);
-        $this->filesystem->dumpFile("data/directly_on_root.txt", implode($directlyOnRoot, PHP_EOL));
+        $this->filesystem->dumpFile("data/directly_on_root.txt", implode(PHP_EOL, $directlyOnRoot));
+        natcasesort($urlsWithContent);
+        $this->filesystem->dumpFile("data/url_all.txt", implode(PHP_EOL, $urlsWithContent));
+
         natcasesort($urlParts);
-        $this->filesystem->dumpFile("data/url_parts.txt", implode($urlParts, PHP_EOL));
+        $this->filesystem->dumpFile("data/url_parts.txt", implode(PHP_EOL, $urlParts));
+
+        // Creating list for https://github.com/webplatform/mediawiki-conversion/issues/2
+        ksort($urlPartsAll);
+        $urlPartsAllOut = array();
+        foreach ($urlPartsAll as $urlPartsAllKey => $urlPartsAllRow) {
+            $urlPartsAllEntryUnique = array_unique($urlPartsAllRow);
+            if (count($urlPartsAllEntryUnique) > 1) {
+                $urlPartsAllOut[] = sprintf(' - %s', implode(', ', $urlPartsAllEntryUnique));
+            }
+        }
+        $this->filesystem->dumpFile("data/url_parts_variants.txt", implode(PHP_EOL, $urlPartsAllOut));
 
         $sanity_redirects_out = array('URLs to return new Location (from => to):');
         foreach ($sanity_redirs as $title => $sanitized) {
             $sanity_redirects_out[] = sprintf(' - "%s": "%s"', $title, $sanitized);
         }
-        $this->filesystem->dumpFile("data/sanity_redirects.txt", implode($sanity_redirects_out, PHP_EOL));
+        $this->filesystem->dumpFile("data/sanity_redirects.txt", implode(PHP_EOL, $sanity_redirects_out));
 
         $redirects_out = array('Redirects (from => to):');
         foreach ($redirects as $url => $redirect_to) {
             $redirects_out[] = sprintf(' - "%s": "%s"', $url, $redirect_to);
         }
-        $this->filesystem->dumpFile("data/redirects.txt", implode($redirects_out, PHP_EOL));
+        $this->filesystem->dumpFile("data/redirects.txt", implode(PHP_EOL, $redirects_out));
     }
 }
