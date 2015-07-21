@@ -10,6 +10,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Filesystem\Filesystem;
 use Prewk\XmlStringStreamer;
 use Bit3\GitPhp\GitRepository;
@@ -52,6 +53,7 @@ DESCR;
             ->setDescription($description)
             ->setDefinition(
                 [
+                    new InputArgument('pass', InputArgument::REQUIRED, 'The pass number: 1) handle deleted content,  2) write history on top of deleted content. ', null),
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per document ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of documents', 0),
                     new InputOption('git', '', InputOption::VALUE_NONE, 'Do run git import (write to filesystem is implicit), defaults to false'),
@@ -67,6 +69,7 @@ DESCR;
         $useGit = $input->getOption('git');
         $maxHops = (int) $input->getOption('max-pages');    // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
+        $passNbr = (int) $input->getArgument('pass');
 
         $counter = 0;    // Increment the number of pages we are going through
         $redirects = [];
@@ -125,14 +128,28 @@ DESCR;
                 $is_translation = $wikiDocument->isTranslation();
                 $language_code = $wikiDocument->getLanguageCode();
 
-                $revs  = $wikiDocument->getRevisions()->count();
-
                 $output->writeln(sprintf('"%s":', $title));
+
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
 
                 if ($is_redirect !== false) {
                     $output->writeln(sprintf('  - redirect_to: %s', $is_redirect));
+                }
+
+                /*
+                 * Objective; merge deleted content history under current content.
+                 *
+                 * 1st pass: Only those with redirects (i.e. deleted pages). Should leave an empty out/ directory!
+                 * 2nd pass: Only those without redirects (i.e. current content).
+                 *
+                 */
+                if ($is_redirect === false && $passNbr === 1) {
+                    $output->writeln(sprintf('  - skip: Wiki document %s WITHOUT redirect, at pass 1', $title).PHP_EOL.PHP_EOL);
+                    continue;
+                } elseif ($is_redirect !== false && $passNbr === 2) {
+                    $output->writeln(sprintf('  - skip: Wiki document %s WITH redirect, at pass 2', $title).PHP_EOL.PHP_EOL);
+                    continue;
                 }
 
                 if ($is_translation === true) {
@@ -143,6 +160,7 @@ DESCR;
                     $urlParts[strtolower($urlPart)] = $urlPart;
                 }
 
+                $revs  = $wikiDocument->getRevisions()->count();
                 $output->writeln(sprintf('  - index: %d', $counter));
                 $output->writeln(sprintf('  - revs: %d', $revs));
                 $output->writeln(sprintf('  - revisions:'));
