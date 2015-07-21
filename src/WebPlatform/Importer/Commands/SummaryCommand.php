@@ -18,7 +18,6 @@ use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
 
 use SimpleXMLElement;
-use DateTime;
 use Exception;
 
 /**
@@ -54,6 +53,8 @@ DESCR;
                 [
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per document ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of documents', 0),
+                    new InputOption('display-author', '', InputOption::VALUE_NONE, 'Display or not the author and email address (useful to hide info for public reports), defaults to false'),
+
                 ]
             );
     }
@@ -63,6 +64,7 @@ DESCR;
         $this->users = [];
         $this->filesystem = new Filesystem;
 
+        $displayAuthor = $input->getOption('display-author');
         $maxHops = (int) $input->getOption('max-pages');    // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
 
@@ -124,10 +126,12 @@ DESCR;
 
                 $is_translation = $wikiDocument->isTranslation();
                 $language_code = $wikiDocument->getLanguageCode();
+                $language_name = $wikiDocument->getLanguageName();
 
                 $revs  = $wikiDocument->getRevisions()->count();
 
                 $output->writeln(sprintf('"%s":', $title));
+                $output->writeln(sprintf('  - index: %d', $counter));
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
 
@@ -136,14 +140,13 @@ DESCR;
                 }
 
                 if ($is_translation === true) {
-                    $output->writeln(sprintf('  - lang: %s', $language_code));
+                    $output->writeln(sprintf('  - lang: %s (%s)', $language_code, $language_name));
                 }
 
                 foreach (explode("/", $normalized_location) as $urlDepth => $urlPart) {
                     $urlParts[strtolower($urlPart)] = $urlPart;
                 }
 
-                $output->writeln(sprintf('  - index: %d', $counter));
                 $output->writeln(sprintf('  - revs: %d', $revs));
                 $output->writeln(sprintf('  - revisions:'));
 
@@ -175,17 +178,20 @@ DESCR;
                     }
                     /** -------------------- /Author -------------------- **/
 
-                    $author_string = (string) $wikiRevision->getContributor();
-                    $timestamp = $wikiRevision->getTimestamp()->format(DateTime::RFC2822);
-
-                    $comment = $wikiRevision->getComment();
-                    $comment_shorter = mb_strimwidth($comment, strpos($comment, ': ') + 2, 100);
-
                     $output->writeln(sprintf('    - id: %d', $revision_id));
-                    $output->writeln(sprintf('      rev_counter: %d', $revCounter));
-                    $output->writeln(sprintf('      timestamp: "%s"', $timestamp));
-                    $output->writeln(sprintf('      author: "%s"', $author_string));
-                    $output->writeln(sprintf('      comment: "%s"', $comment_shorter));
+                    $output->writeln(sprintf('      index: %d', $revCounter));
+
+                    $persistArgs = $persistable->setRevision($wikiRevision)->getArgs();
+                    foreach ($persistArgs as $argKey => $argVal) {
+                        if ($argKey === 'message') {
+                            $argVal = mb_strimwidth($argVal, strpos($argVal, ': ') + 2, 100);
+                        }
+                        if ($displayAuthor === false && $argKey === 'author') {
+                            continue;
+                        }
+                        $output->writeln(sprintf('      %s: %s', $argKey, $argVal));
+
+                    }
 
                     if ($revLast->getId() === $wikiRevision->getId() && $wikiDocument->hasRedirect()) {
                         $output->writeln('      is_last_and_has_redirect: True');

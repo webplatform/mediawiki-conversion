@@ -20,7 +20,6 @@ use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
 
 use SimpleXMLElement;
-use DateTime;
 use Exception;
 
 /**
@@ -176,17 +175,17 @@ DESCR;
                     }
                     /** -------------------- /Author -------------------- **/
 
-                    $author_string = (string) $wikiRevision->getContributor();
-                    $timestamp = $wikiRevision->getTimestamp()->format(DateTime::RFC2822);
-
-                    $comment = $wikiRevision->getComment();
-                    $comment_shorter = mb_strimwidth($comment, strpos($comment, ': ') + 2, 100);
-
                     $output->writeln(sprintf('    - id: %d', $revision_id));
-                    $output->writeln(sprintf('      rev_counter: %d', $revCounter));
-                    $output->writeln(sprintf('      timestamp: "%s"', $timestamp));
-                    $output->writeln(sprintf('      author: "%s"', $author_string));
-                    $output->writeln(sprintf('      comment: "%s"', $comment_shorter));
+                    $output->writeln(sprintf('      index: %d', $revCounter));
+
+                    $persistArgs = $persistable->setRevision($wikiRevision)->getArgs();
+                    foreach ($persistArgs as $argKey => $argVal) {
+                        if ($argKey === 'message') {
+                            $argVal = mb_strimwidth($argVal, strpos($argVal, ': ') + 2, 100);
+                        }
+                        $output->writeln(sprintf('      %s: %s', $argKey, $argVal));
+
+                    }
 
                     $removeFile = false;
                     if ($revLast->getId() === $wikiRevision->getId() && $wikiDocument->hasRedirect()) {
@@ -211,9 +210,9 @@ DESCR;
                         try {
                             $this->git
                                 ->commit()
-                                ->message('"'.$comment.'"')
-                                ->author('"'.$author_string.'"')
-                                ->date('"'.$timestamp.'"')
+                                ->message('"'.$persistArgs['message'].'"')
+                                ->author('"'.$persistArgs['author'].'"')
+                                ->date('"'.$persistArgs['date'].'"')
                                 ->allowEmpty()
                                 ->execute();
 
@@ -236,9 +235,9 @@ DESCR;
 
                             $this->git
                                 ->commit()
-                                ->message('"Remove file; '.$comment.'"')
-                                ->author('"'.$author_string.'"')
-                                ->date('"'.$timestamp.'"')
+                                ->message('"Remove file; '.$persistArgs['message'].'"')
+                                ->author('"'.$persistArgs['author'].'"')
+                                ->date('"'.$persistArgs['date'].'"')
                                 ->allowEmpty()
                                 ->execute();
 
