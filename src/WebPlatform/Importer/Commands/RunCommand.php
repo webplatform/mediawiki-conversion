@@ -213,6 +213,12 @@ DESCR;
                     // Overwriting $revList for last pass we’ll
                     // use for conversion.
                     $revList = new SplDoublyLinkedList;
+
+                    // Pass some data we already have so we can
+                    // get it in the converted document.
+                    if ($is_translation === true) {
+                        $revLast->setFrontMatter(array('lang'=>$language_code));
+                    }
                     $revList->push($revLast);
                 }
 
