@@ -251,7 +251,6 @@ DESCR;
 
                         // user_id 10080 is Renoirb (yours truly)
                         $revision->setAuthor($this->users[10080]);
-                        $revision->setComment('Reformatted content');
                         $revision_id = $revLast->getId();
                         $output->writeln(sprintf('    - id: %d', $revision_id));
                     } else {
@@ -344,7 +343,7 @@ DESCR;
             try {
                 $this->git
                     ->commit()
-                    ->message('Convert content')
+                    ->message($revision->getComment())
                     ->author('"'.$persistArgs['author'].'"')
                     ->date('"'.$persistArgs['date'].'"')
                     ->allowEmpty()
