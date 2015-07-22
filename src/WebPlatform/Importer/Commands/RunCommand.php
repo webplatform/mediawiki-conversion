@@ -19,9 +19,12 @@ use Bit3\GitPhp\GitException;
 use WebPlatform\ContentConverter\Model\MediaWikiDocument;
 use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
+use WebPlatform\ContentConverter\Converter\MediaWikiToMarkdown;
 
+use SplDoublyLinkedList;
 use SimpleXMLElement;
 use Exception;
+use DomainException;
 
 /**
  * Read and create a summary from a MediaWiki dumpBackup XML file
@@ -32,6 +35,9 @@ class RunCommand extends Command
 {
     protected $users = array();
 
+    /** @var WebPlatform\ContentConverter\Converter\MediaWikiToMarkdown Symfony Filesystem handler */
+    protected $converter;
+
     /** @var Symfony\Component\Filesystem\Filesystem Symfony Filesystem handler */
     protected $filesystem;
 
@@ -41,11 +47,30 @@ class RunCommand extends Command
     protected function configure()
     {
         $description = <<<DESCR
-                Walk through MediaWiki dumpBackup XML file,
-                summarize revisions give details about the
-                wiki contents.
+                Walk through MediaWiki dumpBackup XML file and run through revisions
+                to convert them into static files.
 
-                ...
+                Script is designed to run in three passes that has to be run in
+                this order.
+
+                1.) Handle deleted pages
+
+                    When a Wiki page is moved, MediaWiki allows to leave a redirect behind.
+                    The objective of this pass is to put the former content underneath all history
+                    such that this pass leaves an empty output directory but with all the deleted
+                    file history kept.
+
+
+                2.) Handle pages that weren’t deleted in history
+
+                    Write history on top of deleted content. That way we won’t get conflicts between
+                    content that got deleted from still current content.
+
+
+                3.) Convert content
+
+                    Loop through ALL documents that still has content, take latest revision and pass it through
+                    a converter.
 
 DESCR;
         $this
@@ -53,9 +78,9 @@ DESCR;
             ->setDescription($description)
             ->setDefinition(
                 [
-                    new InputArgument('pass', InputArgument::REQUIRED, 'The pass number: 1) handle deleted content,  2) write history on top of deleted content. ', null),
-                    new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per document ', 0),
-                    new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of documents', 0),
+                    new InputArgument('pass', InputArgument::REQUIRED, 'The pass number: 1,2,3', null),
+                    new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per page ', 0),
+                    new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of pages', 0),
                     new InputOption('git', '', InputOption::VALUE_NONE, 'Do run git import (write to filesystem is implicit), defaults to false'),
                 ]
             );
@@ -109,9 +134,14 @@ DESCR;
         $streamer = XmlStringStreamer::createStringWalkerParser($file);
         /** -------------------- /XML source -------------------- **/
 
+        if ($passNbr === 3) {
+            // We are at conversion pass, instantiate our Converter!
+            $this->converter = new MediaWikiToMarkdown;
+        }
+
         while ($node = $streamer->getNode()) {
             if ($maxHops > 0 && $maxHops === $counter) {
-                $output->writeln(sprintf('Reached desired maximum of %d loops', $maxHops).PHP_EOL.PHP_EOL);
+                $output->writeln(sprintf('Reached desired maximum of %d documents', $maxHops).PHP_EOL.PHP_EOL);
                 break;
             }
             $pageNode = new SimpleXMLElement($node);
@@ -137,19 +167,29 @@ DESCR;
                     $output->writeln(sprintf('  - redirect_to: %s', $is_redirect));
                 }
 
-                /*
+                /**
                  * Objective; merge deleted content history under current content.
                  *
                  * 1st pass: Only those with redirects (i.e. deleted pages). Should leave an empty out/ directory!
                  * 2nd pass: Only those without redirects (i.e. current content).
-                 *
+                 * 3nd pass: Only for those without redirects, they are going to get the latest version passed through the convertor
                  */
-                if ($is_redirect === false && $passNbr === 1) {
-                    $output->writeln(sprintf('  - skip: Wiki document %s WITHOUT redirect, at pass 1', $title).PHP_EOL.PHP_EOL);
+                if ($wikiDocument->hasRedirect() === false && $passNbr === 1) {
+                    // Skip all NON redirects for pass 1
+                    $output->writeln(sprintf('  - skip: Document %s WITHOUT redirect, at pass 1 (handling redirects)', $title).PHP_EOL.PHP_EOL);
                     continue;
-                } elseif ($is_redirect !== false && $passNbr === 2) {
-                    $output->writeln(sprintf('  - skip: Wiki document %s WITH redirect, at pass 2', $title).PHP_EOL.PHP_EOL);
+                } elseif ($wikiDocument->hasRedirect() && $passNbr === 2) {
+                    // Skip all redirects for pass 2
+                    $output->writeln(sprintf('  - skip: Document %s WITH redirect, at pass 2 (handling non redirects)', $title).PHP_EOL.PHP_EOL);
                     continue;
+                } elseif ($wikiDocument->hasRedirect() && $passNbr === 3) {
+                    // Skip all redirects for pass 2
+                    $output->writeln(sprintf('  - skip: Document %s WITH redirect, at pass 3', $title).PHP_EOL.PHP_EOL);
+                    continue;
+                }
+
+                if ($passNbr < 1 || $passNbr > 3) {
+                    throw new DomainException('This command has only three pases.');
                 }
 
                 if ($is_translation === true) {
@@ -169,6 +209,13 @@ DESCR;
                 $revLast = $wikiDocument->getLatest();
                 $revCounter = 0;
 
+                if ($passNbr === 3) {
+                    // Overwriting $revList for last pass we’ll
+                    // use for conversion.
+                    $revList = new SplDoublyLinkedList;
+                    $revList->push($revLast);
+                }
+
                 /** ----------- REVISION --------------- **/
                 for ($revList->rewind(); $revList->valid(); $revList->next()) {
                     if ($revMaxHops > 0 && $revMaxHops === $revCounter) {
@@ -177,7 +224,6 @@ DESCR;
                     }
 
                     $wikiRevision = $revList->current();
-                    $revision_id = $wikiRevision->getId();
 
                     /** -------------------- Author -------------------- **/
                     // An edge case where MediaWiki may give author as user_id 0, even though we dont have it
@@ -193,10 +239,29 @@ DESCR;
                     }
                     /** -------------------- /Author -------------------- **/
 
-                    $output->writeln(sprintf('    - id: %d', $revision_id));
-                    $output->writeln(sprintf('      index: %d', $revCounter));
+                    // Since we know that the converter is instantiated
+                    // only at pass 3. We can flip revision object from
+                    // here.
+                    if ($passNbr === 3) {
+                        try {
+                            $revision = $this->converter->apply($wikiRevision);
+                        } catch (Exception $e) {
+                            throw new Exception(sprintf('Could not do conversion of %s', $wikiDocument->getTitle()), null, $e);
+                        }
 
-                    $persistArgs = $persistable->setRevision($wikiRevision)->getArgs();
+                        // user_id 10080 is Renoirb (yours truly)
+                        $revision->setAuthor($this->users[10080]);
+                        $revision->setComment('Reformatted content');
+                        $revision_id = $revLast->getId();
+                        $output->writeln(sprintf('    - id: %d', $revision_id));
+                    } else {
+                        $revision = $wikiRevision;
+                        $revision_id = $wikiRevision->getId();
+                        $output->writeln(sprintf('    - id: %d', $revision_id));
+                        $output->writeln(sprintf('      index: %d', $revCounter));
+                    }
+
+                    $persistArgs = $persistable->setRevision($revision)->getArgs();
                     foreach ($persistArgs as $argKey => $argVal) {
                         if ($argKey === 'message') {
                             $argVal = mb_strimwidth($argVal, strpos($argVal, ': ') + 2, 100);
@@ -206,13 +271,13 @@ DESCR;
                     }
 
                     $removeFile = false;
-                    if ($revLast->getId() === $wikiRevision->getId() && $wikiDocument->hasRedirect()) {
+                    if ($passNbr < 3 && $revLast->getId() === $wikiRevision->getId() && $wikiDocument->hasRedirect()) {
                         $output->writeln('      is_last_and_has_redirect: True');
                         $removeFile = true;
                     }
 
                     if ($useGit === true) {
-                        $persistable->setRevision($wikiRevision);
+                        $persistable->setRevision($revision);
 
                         $this->filesystem->dumpFile($persistable->getName(), (string) $persistable);
                         try {
@@ -225,41 +290,43 @@ DESCR;
                             throw new Exception($message, null, $e);
                         }
 
-                        try {
-                            $this->git
-                                ->commit()
-                                ->message('"'.$persistArgs['message'].'"')
-                                ->author('"'.$persistArgs['author'].'"')
-                                ->date('"'.$persistArgs['date'].'"')
-                                ->allowEmpty()
-                                ->execute();
-
-                        } catch (GitException $e) {
-                            var_dump($this->git);
-                            $message = sprintf('Could not commit for revision %d', $revision_id);
-                            throw new Exception($message, null, $e);
-                        }
-
-                        if ($removeFile === true) {
+                        if ($passNbr < 3) {
                             try {
                                 $this->git
-                                    ->rm()
-                                    // Make sure out/ matches what we set at GitCommitFileRevision constructor.
-                                    ->execute(preg_replace('/^out\//', '', $persistable->getName()));
+                                    ->commit()
+                                    ->message($persistArgs['message'])
+                                    ->author('"'.$persistArgs['author'].'"')
+                                    ->date('"'.$persistArgs['date'].'"')
+                                    ->allowEmpty()
+                                    ->execute();
+
                             } catch (GitException $e) {
-                                $message = sprintf('Could remove %s at revision %d', $persistable->getName(), $revision_id);
+                                var_dump($this->git);
+                                $message = sprintf('Could not commit for revision %d', $revision_id);
                                 throw new Exception($message, null, $e);
                             }
 
-                            $this->git
-                                ->commit()
-                                ->message('"Remove file; '.$persistArgs['message'].'"')
-                                ->author('"'.$persistArgs['author'].'"')
-                                ->date('"'.$persistArgs['date'].'"')
-                                ->allowEmpty()
-                                ->execute();
+                            if ($removeFile === true) {
+                                try {
+                                    $this->git
+                                        ->rm()
+                                        // Make sure out/ matches what we set at GitCommitFileRevision constructor.
+                                        ->execute(preg_replace('/^out\//', '', $persistable->getName()));
+                                } catch (GitException $e) {
+                                    $message = sprintf('Could remove %s at revision %d', $persistable->getName(), $revision_id);
+                                    throw new Exception($message, null, $e);
+                                }
 
-                            $this->filesystem->remove($persistable->getName());
+                                $this->git
+                                    ->commit()
+                                    ->message('Remove file; '.$persistArgs['message'])
+                                    ->author('"'.$persistArgs['author'].'"')
+                                    ->date('"'.$persistArgs['date'].'"')
+                                    ->allowEmpty()
+                                    ->execute();
+
+                                $this->filesystem->remove($persistable->getName());
+                            }
                         }
                     }
 
@@ -269,6 +336,24 @@ DESCR;
 
                 $output->writeln(PHP_EOL.PHP_EOL);
                 ++$counter;
+            }
+        }
+
+        if ($passNbr === 3) {
+            $output->writeln('Third pass. One. Commit.'.PHP_EOL.PHP_EOL);
+            try {
+                $this->git
+                    ->commit()
+                    ->message('Convert content')
+                    ->author('"'.$persistArgs['author'].'"')
+                    ->date('"'.$persistArgs['date'].'"')
+                    ->allowEmpty()
+                    ->execute();
+
+            } catch (GitException $e) {
+                var_dump($this->git);
+                $message = sprintf('Could not commit for revision %d', $revision_id);
+                throw new Exception($message, null, $e);
             }
         }
     }

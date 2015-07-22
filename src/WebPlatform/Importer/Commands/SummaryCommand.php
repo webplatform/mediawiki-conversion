@@ -319,7 +319,7 @@ DESCR;
 
         // Creating list for https://github.com/webplatform/mediawiki-conversion/issues/2
         ksort($urlPartsAll);
-        $urlPartsAllOut = array();
+        $urlPartsAllOut = array('All words that exists in an URL, and the different ways they are written (needs harmonizing!):');
         foreach ($urlPartsAll as $urlPartsAllKey => $urlPartsAllRow) {
             $urlPartsAllEntryUnique = array_unique($urlPartsAllRow);
             if (count($urlPartsAllEntryUnique) > 1) {
