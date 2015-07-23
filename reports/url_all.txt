@@ -862,7 +862,6 @@ apis/webrtc/RTCDataChannel/send
 apis/webrtc/RTCIceCandidate
 apis/webrtc/RTCPeerConnection
 apis/webrtc/RTCPeerConnection/addIceCandidate
-apis/webrtc/RTCPeerConnection/addstream
 apis/webrtc/RTCPeerConnection/addStream
 apis/webrtc/RTCPeerConnection/close
 apis/webrtc/RTCPeerConnection/createAnswer
@@ -894,7 +893,6 @@ apis/webrtc/RTCPeerConnection/readyState
 apis/webrtc/RTCPeerConnection/remoteDescription
 apis/webrtc/RTCPeerConnection/remoteStreams
 apis/webrtc/RTCPeerConnection/removeStream
-apis/webrtc/RTCPeerConnection/removestream
 apis/webrtc/RTCPeerConnection/setIdentityProvider
 apis/webrtc/RTCPeerConnection/setLocalDescription
 apis/webrtc/RTCPeerConnection/setRemoteDescription
@@ -1096,7 +1094,6 @@ concepts/ia and usability
 concepts/information architecture
 concepts/information architecture/content research
 concepts/information architecture/planning a website
-concepts/information architecture/scoping and user research
 concepts/internationalization
 concepts/Internet and Web
 concepts/Internet and Web/how browsers work
@@ -1486,8 +1483,8 @@ css/high contrast mode/properties/-ms-high-contrast
 css/high contrast modeapis/properties/ms-high-contrast-adjust
 css/keywords
 css/ko
-css/mediaqueries
 css/media queries
+css/mediaqueries
 css/media queries/accelerator
 css/media queries/any-hover
 css/media queries/any-pointer
@@ -1901,7 +1898,6 @@ css/regions
 css/regions/MSRange-collection
 css/ruby
 css/selectors
-css/Selectors
 css/selectors/attributes/equality
 css/selectors/attributes/existence
 css/selectors/attributes/hyphen
@@ -2894,7 +2890,6 @@ em
 en
 events
 events/tutorials
-featuremap
 Floats and clearing
 flush
 flush left
@@ -2981,8 +2976,6 @@ html/attributes/background (Table, table cell, td, th elements)
 html/attributes/balance
 html/attributes/BaseHref
 html/attributes/bgColor
-html/attributes/BGCOLOR
-html/attributes/bgColor (document)
 html/attributes/bgProperties
 html/attributes/border
 html/attributes/border (frameSet, iframe)
@@ -3855,7 +3848,6 @@ mathml/elements/mtext
 mean line
 mobile web/PhoneGap
 monospaced font
-MyFirstPage
 non lining figures
 Notes:The future of the open web
 oblique
@@ -3872,9 +3864,7 @@ PointerEvents/prototypes
 PointerEvents/specifications
 PointerEvents/test
 PointerEvents/try
-properietary
 proportional font
-proprietary
 ragged
 recommendation
 relative unit

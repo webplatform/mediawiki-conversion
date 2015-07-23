@@ -30,7 +30,6 @@ edge case
 em
 en
 events
-featuremap
 Floats and clearing
 flush
 flush left
@@ -63,7 +62,6 @@ manipulating css with javascript
 mathml
 mean line
 monospaced font
-MyFirstPage
 non lining figures
 Notes:The future of the open web
 oblique
@@ -72,9 +70,7 @@ pagination
 pica
 point
 PointerEvents
-properietary
 proportional font
-proprietary
 ragged
 recommendation
 relative unit

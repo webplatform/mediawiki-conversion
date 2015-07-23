@@ -1,10 +1,9 @@
+All words that exists in an URL, and the different ways they are written (needs harmonizing!):
  - accept, Accept
  - accessibility_basics, Accessibility_basics
  - accessibility_testing, Accessibility_testing
- - addStream, addstream
  - animatable, Animatable
  - animation, Animation
- - BGCOLOR, bgColor
  - canvas_tutorial, Canvas_tutorial
  - Connection, connection
  - cookie, Cookie
@@ -56,7 +55,6 @@
  - Range, range
  - readOnly, readonly
  - Region, region
- - removeStream, removestream
  - selection, Selection
  - selectors, Selectors
  - storage, Storage

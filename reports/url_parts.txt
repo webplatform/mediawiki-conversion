@@ -63,7 +63,7 @@ addRange
 address
 addRule
 addSourceBuffer
-addstream
+addStream
 addStyleSheet
 addtrack
 adjacent_sibling
@@ -333,7 +333,6 @@ berlin_feb_2013
 best_practices_when_writing_for_mobile
 bezierCurveTo
 bgColor
-bgColor_document
 bgProperties
 bgSound
 bias
@@ -1089,7 +1088,6 @@ f
 face
 fallback_property
 farthestViewportElement
-featuremap
 feBlend
 feColorMatrix
 feComponentTransfer
@@ -2173,7 +2171,6 @@ multiply
 MutationEvent
 mute
 muted
-MyFirstPage
 name
 NamedFlow
 NamedFlowCollection
@@ -2550,13 +2547,11 @@ programming_basics
 progress
 ProgressEvent
 progressive_enhancement
-properietary
 properties
 propertychange
 propertyIsEnumerable
 propertyName
 proportional_font
-proprietary
 proprietary_internet_explorer_techniques
 protocol
 protocols
@@ -2678,7 +2673,7 @@ removeProperty
 removeRange
 removeRecursively
 removeRule
-removestream
+removeStream
 removeStyleSheet
 removetrack
 rendering_engine
@@ -2797,7 +2792,6 @@ scaleZ
 scan
 scheme
 scope
-scoping_and_user_research
 screen
 screenLeft
 screenPixelToMillimeterX

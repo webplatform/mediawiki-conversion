@@ -151,15 +151,13 @@ DESCR;
             if (isset($pageNode->title)) {
 
                 $wikiDocument = new MediaWikiDocument($pageNode);
-                //$wikiDocument->setName($this->titleFilter->filter($wikiDocument->getName()));
-                //$wikiDocument->setRedirect($this->titleFilter->filter($wikiDocument->getRedirect()));
-
                 $persistable = new GitCommitFileRevision($wikiDocument, 'out/content/', '.md');
 
                 $title = $wikiDocument->getTitle();
-                $normalized_location = $this->titleFilter->filter($wikiDocument->getName());
+                $normalized_location = $wikiDocument->getName();
                 $file_path  = $this->titleFilter->filter($persistable->getName());
-                $is_redirect = $wikiDocument->getRedirect(); // False if not a redirect, string if it is
+                $has_redirect = $wikiDocument->hasRedirect();
+                $redirect_to = $this->titleFilter->filter($wikiDocument->getRedirect()); // False if not a redirect, string if it is
 
                 $is_translation = $wikiDocument->isTranslation();
                 $language_code = $wikiDocument->getLanguageCode();
@@ -170,8 +168,8 @@ DESCR;
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
 
-                if ($is_redirect !== false) {
-                    $output->writeln(sprintf('  - redirect_to: %s', $is_redirect));
+                if ($has_redirect === true) {
+                    $output->writeln(sprintf('  - redirect_to: %s', $redirect_to));
                 }
 
                 /**
@@ -291,14 +289,14 @@ DESCR;
                     if ($useGit === true) {
                         $persistable->setRevision($revision);
 
-                        $this->filesystem->dumpFile($persistable->getName(), (string) $persistable);
+                        $this->filesystem->dumpFile($file_path, (string) $persistable);
                         try {
                             $this->git
                                 ->add()
                                 // Make sure out/ matches what we set at GitCommitFileRevision constructor.
-                                ->execute(preg_replace('/^out\//', '', $persistable->getName()));
+                                ->execute(preg_replace('/^out\//', '', $file_path));
                         } catch (GitException $e) {
-                            $message = sprintf('Could not add file %s for revision %d', $persistable->getName(), $revision_id);
+                            $message = sprintf('Could not add file %s for revision %d', $file_path, $revision_id);
                             throw new Exception($message, null, $e);
                         }
 
@@ -323,9 +321,9 @@ DESCR;
                                     $this->git
                                         ->rm()
                                         // Make sure out/ matches what we set at GitCommitFileRevision constructor.
-                                        ->execute(preg_replace('/^out\//', '', $persistable->getName()));
+                                        ->execute(preg_replace('/^out\//', '', $file_path));
                                 } catch (GitException $e) {
-                                    $message = sprintf('Could remove %s at revision %d', $persistable->getName(), $revision_id);
+                                    $message = sprintf('Could remove %s at revision %d', $file_path, $revision_id);
                                     throw new Exception($message, null, $e);
                                 }
 
@@ -337,7 +335,7 @@ DESCR;
                                     ->allowEmpty()
                                     ->execute();
 
-                                $this->filesystem->remove($persistable->getName());
+                                $this->filesystem->remove($file_path);
                             }
                         }
                     }
