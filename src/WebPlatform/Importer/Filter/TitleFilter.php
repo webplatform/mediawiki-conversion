@@ -96,6 +96,7 @@ class TitleFilter extends AbstractFilter
         //$words[] = 'Global';                    // X
         $words[] = 'History';
         $words[] = 'How_does_the_Internet_Work';
+        $words[] = 'Internet_and_Web';
         //$words[] = 'ID';                        // X
         //$words[] = 'Image';                     // X
         //$words[] = 'Implementation';            // X

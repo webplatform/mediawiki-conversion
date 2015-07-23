@@ -13,10 +13,10 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Filesystem\Filesystem;
 use Prewk\XmlStringStreamer;
 
-use WebPlatform\ContentConverter\Model\MediaWikiDocument;
 use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
 
+use WebPlatform\Importer\Model\MediaWikiDocument;
 use WebPlatform\Importer\Filter\TitleFilter;
 
 use SimpleXMLElement;
@@ -56,7 +56,7 @@ DESCR;
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per document ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of documents', 0),
                     new InputOption('display-author', '', InputOption::VALUE_NONE, 'Display or not the author and email address (useful to hide info for public reports), defaults to false'),
-
+                    new InputOption('indexes', '', InputOption::VALUE_NONE, 'Whether or not we display loop indexes'),
                 ]
             );
     }
@@ -67,6 +67,7 @@ DESCR;
         $this->filesystem = new Filesystem;
         $this->titleFilter = new TitleFilter;
 
+        $displayIndex = $input->getOption('indexes');
         $displayAuthor = $input->getOption('display-author');
         $maxHops = (int) $input->getOption('max-pages');    // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
@@ -121,15 +122,13 @@ DESCR;
             if (isset($pageNode->title)) {
 
                 $wikiDocument = new MediaWikiDocument($pageNode);
-                $wikiDocument->setName($this->titleFilter->filter($wikiDocument->getName()));
-                $wikiDocument->setRedirect($this->titleFilter->filter($wikiDocument->getRedirect()));
-
                 $persistable = new GitCommitFileRevision($wikiDocument, 'out/content/', '.md');
 
                 $title = $wikiDocument->getTitle();
                 $normalized_location = $wikiDocument->getName();
-                $file_path  = $persistable->getName();
-                $is_redirect = $wikiDocument->getRedirect(); // False if not a redirect, string if it is
+                $file_path  = $this->titleFilter->filter($persistable->getName());
+                $has_redirect = $wikiDocument->hasRedirect();
+                $redirect_to = $this->titleFilter->filter($wikiDocument->getRedirect()); // False if not a redirect, string if it is
 
                 $is_translation = $wikiDocument->isTranslation();
                 $language_code = $wikiDocument->getLanguageCode();
@@ -138,12 +137,14 @@ DESCR;
                 $revs  = $wikiDocument->getRevisions()->count();
 
                 $output->writeln(sprintf('"%s":', $title));
-                $output->writeln(sprintf('  - index: %d', $counter));
+                if ($displayIndex === true) {
+                    $output->writeln(sprintf('  - index: %d', $counter));
+                }
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
 
-                if ($is_redirect !== false) {
-                    $output->writeln(sprintf('  - redirect_to: %s', $is_redirect));
+                if ($has_redirect === true) {
+                    $output->writeln(sprintf('  - redirect_to: %s', $redirect_to));
                 } else {
                     $urlsWithContent[] = $title;
                     foreach (explode("/", $normalized_location) as $urlDepth => $urlPart) {
@@ -190,12 +191,18 @@ DESCR;
                     /** -------------------- /Author -------------------- **/
 
                     $output->writeln(sprintf('    - id: %d', $revision_id));
-                    $output->writeln(sprintf('      index: %d', $revCounter));
+                    if ($displayIndex === true) {
+                        $output->writeln(sprintf('      index: %d', $revCounter));
+                    }
 
                     $persistArgs = $persistable->setRevision($wikiRevision)->getArgs();
                     foreach ($persistArgs as $argKey => $argVal) {
                         if ($argKey === 'message') {
-                            $argVal = mb_strimwidth($argVal, strpos($argVal, ': ') + 2, 100);
+                            $argVal = trim(mb_strimwidth($argVal, strpos($argVal, ': ') + 2, 100));
+                        }
+                        if ($argKey === 'message' && empty($argVal)) {
+                            // Lets not pollute report with empty messages
+                            continue;
                         }
                         if ($displayAuthor === false && $argKey === 'author') {
                             continue;
@@ -217,7 +224,7 @@ DESCR;
 
                 // Which pages are directly on /wiki/foo. Are there some we
                 // should move elsewhere such as the glossary items?
-                if (count(explode('/', $title)) == 1 && $is_redirect === false) {
+                if (count(explode('/', $title)) == 1 && $has_redirect === false) {
                     $directlyOnRoot[] = $title;
                 }
 
@@ -253,11 +260,13 @@ DESCR;
                 // 2. Get list of pages
                 //
                 // If we have a page duplicate, throw an exception!
-                if ($is_redirect !== false) {
+                if ($has_redirect === true) {
                     // Pages we know are redirects within MediaWiki, we won’t
                     // pass them within the $pages aray because they would be
                     // empty content with only a redirect anyway.
-                    $redirects[$normalized_location] = $is_redirect;
+                    if ($normalized_location !== $redirect_to) {
+                        $redirects[$normalized_location] = $redirect_to;
+                    }
                 } elseif (!in_array($normalized_location, array_keys($pages))) {
                     // Pages we know has content, lets count them!
                     $pages[$normalized_location] = $title;
@@ -308,20 +317,20 @@ DESCR;
         $numbers[] = sprintf('  - "redirects for URL sanity": %d', count($sanity_redirs));
         $numbers[] = sprintf('  - "edits average": %d', $edit_average);
         $numbers[] = sprintf('  - "edits median": %d', $edit_median);
-        $this->filesystem->dumpFile('data/numbers.txt', implode($numbers, PHP_EOL));
+        $this->filesystem->dumpFile('reports/numbers.txt', implode($numbers, PHP_EOL));
 
-        $this->filesystem->dumpFile("data/hundred_revs.txt", implode($moreThanHundredRevs, PHP_EOL));
-        $this->filesystem->dumpFile("data/problematic_authors.txt", implode($problematicAuthors, PHP_EOL));
+        $this->filesystem->dumpFile("reports/hundred_revs.txt", implode($moreThanHundredRevs, PHP_EOL));
+        $this->filesystem->dumpFile("reports/problematic_authors.txt", implode($problematicAuthors, PHP_EOL));
 
         natcasesort($translations);
-        $this->filesystem->dumpFile("data/translations.txt", implode(PHP_EOL, $translations));
+        $this->filesystem->dumpFile("reports/translations.txt", implode(PHP_EOL, $translations));
         natcasesort($directlyOnRoot);
-        $this->filesystem->dumpFile("data/directly_on_root.txt", implode(PHP_EOL, $directlyOnRoot));
+        $this->filesystem->dumpFile("reports/directly_on_root.txt", implode(PHP_EOL, $directlyOnRoot));
         natcasesort($urlsWithContent);
-        $this->filesystem->dumpFile("data/url_all.txt", implode(PHP_EOL, $urlsWithContent));
+        $this->filesystem->dumpFile("reports/url_all.txt", implode(PHP_EOL, $urlsWithContent));
 
         natcasesort($urlParts);
-        $this->filesystem->dumpFile("data/url_parts.txt", implode(PHP_EOL, $urlParts));
+        $this->filesystem->dumpFile("reports/url_parts.txt", implode(PHP_EOL, $urlParts));
 
         // Creating list for https://github.com/webplatform/mediawiki-conversion/issues/2
         ksort($urlPartsAll);
@@ -332,18 +341,18 @@ DESCR;
                 $urlPartsAllOut[] = sprintf(' - %s', implode(', ', $urlPartsAllEntryUnique));
             }
         }
-        $this->filesystem->dumpFile("data/url_parts_variants.txt", implode(PHP_EOL, $urlPartsAllOut));
+        $this->filesystem->dumpFile("reports/url_parts_variants.txt", implode(PHP_EOL, $urlPartsAllOut));
 
         $sanity_redirects_out = array('URLs to return new Location (from => to):');
         foreach ($sanity_redirs as $title => $sanitized) {
             $sanity_redirects_out[] = sprintf(' - "%s": "%s"', $title, $sanitized);
         }
-        $this->filesystem->dumpFile("data/sanity_redirects.txt", implode(PHP_EOL, $sanity_redirects_out));
+        $this->filesystem->dumpFile("reports/sanity_redirects.txt", implode(PHP_EOL, $sanity_redirects_out));
 
         $redirects_out = array('Redirects (from => to):');
         foreach ($redirects as $url => $redirect_to) {
             $redirects_out[] = sprintf(' - "%s": "%s"', $url, $redirect_to);
         }
-        $this->filesystem->dumpFile("data/redirects.txt", implode(PHP_EOL, $redirects_out));
+        $this->filesystem->dumpFile("reports/redirects.txt", implode(PHP_EOL, $redirects_out));
     }
 }
