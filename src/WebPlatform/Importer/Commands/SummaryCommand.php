@@ -1,7 +1,7 @@
 <?php
 
 /**
- * WebPlatform MediaWiki Conversion.
+ * WebPlatform MediaWiki Conversion workbench.
  */
 
 namespace WebPlatform\Importer\Commands;
@@ -16,6 +16,8 @@ use Prewk\XmlStringStreamer;
 use WebPlatform\ContentConverter\Model\MediaWikiDocument;
 use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
+
+use WebPlatform\Importer\Filter\TitleFilter;
 
 use SimpleXMLElement;
 use Exception;
@@ -63,6 +65,7 @@ DESCR;
     {
         $this->users = [];
         $this->filesystem = new Filesystem;
+        $this->titleFilter = new TitleFilter;
 
         $displayAuthor = $input->getOption('display-author');
         $maxHops = (int) $input->getOption('max-pages');    // Maximum number of pages we go through
@@ -118,6 +121,9 @@ DESCR;
             if (isset($pageNode->title)) {
 
                 $wikiDocument = new MediaWikiDocument($pageNode);
+                $wikiDocument->setName($this->titleFilter->filter($wikiDocument->getName()));
+                $wikiDocument->setRedirect($this->titleFilter->filter($wikiDocument->getRedirect()));
+
                 $persistable = new GitCommitFileRevision($wikiDocument, 'out/content/', '.md');
 
                 $title = $wikiDocument->getTitle();
