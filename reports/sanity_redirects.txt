@@ -83,7 +83,6 @@ URLs to return new Location (from => to):
  - "tutorials/The HTML head element": "tutorials/The_HTML_head_element"
  - "html/tutorials/Marking up textual content in HTML": "html/tutorials/Marking_up_textual_content_in_HTML"
  - "tutorials/HTML links - lets build a web": "tutorials/HTML_links_-_lets_build_a_web"
- - "Tutorials/HTML forms - the basics": "Tutorials/HTML_forms_-_the_basics"
  - "tutorials/Lesser - known semantic elements": "tutorials/Lesser_-_known_semantic_elements"
  - "tutorials/Creating multiple pages with navigation menus": "tutorials/Creating_multiple_pages_with_navigation_menus"
  - "tutorials/Validating your HTML": "tutorials/Validating_your_HTML"

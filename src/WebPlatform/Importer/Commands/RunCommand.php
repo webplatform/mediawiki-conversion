@@ -250,9 +250,7 @@ DESCR;
                     }
                     /** -------------------- /Author -------------------- **/
 
-                    // Since we know that the converter is instantiated
-                    // only at pass 3. We can flip revision object from
-                    // here.
+                    // Lets handle conversion only at 3rd pass.
                     if ($passNbr === 3) {
                         try {
                             $revision = $this->converter->apply($wikiRevision);

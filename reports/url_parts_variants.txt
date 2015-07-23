@@ -69,7 +69,6 @@ All words that exists in an URL, and the different ways they are written (needs 
  - The_History_of_the_Web, The_history_of_the_Web, the_history_of_the_web
  - thead, tHead
  - timeStamp, timestamp
- - tutorials, Tutorials
  - Unicode, unicode
  - URL, url
  - websocket, WebSocket

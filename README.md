@@ -61,3 +61,22 @@
 * [Export MediaWiki gist](https://gist.github.com/renoirb/ad878a58092473267f26)
 * [MediaWiki to Confluence migration](http://www.slideshare.net/NilsHofmeister/aughh-confluence)
 
+
+
+# Redirects to fix or be case insensitive
+
+## css/cssom/stylesheet redirects to css/cssom/styleSheet
+
+e.g.
+
+* css/cssom/styleSheet/removeImport
+* css/cssom/styleSheet/removeRule
+
+
+## CSS/Selectors redirects to css/selectors
+
+* CSS/Selectors/pseudo-classes/:target to css/selectors/pseudo-classes/target
+
+## dom/DomTokenList redirects to dom/DOMTokenList
+
+* dom/DOMTokenList/item

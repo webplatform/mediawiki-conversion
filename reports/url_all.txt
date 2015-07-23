@@ -1943,8 +1943,8 @@ css/selectors/pseudo-classes/:only-of-type
 css/selectors/pseudo-classes/:optional
 css/selectors/pseudo-classes/:required
 css/selectors/pseudo-classes/:root
-css/selectors/pseudo-classes/:target
 CSS/Selectors/pseudo-classes/:target
+css/selectors/pseudo-classes/:target
 css/selectors/pseudo-classes/:valid
 css/selectors/pseudo-classes/:visited
 css/selectors/pseudo-classes/Structural pseudo-classes
@@ -4498,7 +4498,6 @@ tutorials/Headers footers columns and templates
 tutorials/Hello world in JavaScript
 tutorials/How does the Internet work
 tutorials/html5 form features
-Tutorials/HTML forms - the basics
 tutorials/HTML links - lets build a web
 tutorials/implementing html5 audio
 tutorials/information architecture/Planning out a website

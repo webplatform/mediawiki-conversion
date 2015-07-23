@@ -1551,7 +1551,6 @@ HTMLUListElement
 HTMLUnknownElement
 HTMLVideoElement
 html_comment_data-type
-HTML_forms_-_the_basics
 html_forms_basics
 html_links
 HTML_links_-_lets_build_a_web

@@ -143,9 +143,19 @@ class TitleFilter extends AbstractFilter
         //$words[] = 'websocket';                 // X
         $words[] = 'What_does_a_good_web_page_need';
 
+        // Ones that are common in an URL but yet, in this
+        // precise context, had casing discrepancies.
+        $words[] = 'css\/cssom\/styleSheet';
+        $words[] = 'css\/selectors';
+        $words[] = 'dom\/DOMTokenList';
+        $words[] = 'tutorials\/HTML_forms';
+
         $matchers = [];
-        foreach ($words as $word) {
+        foreach ($words as $k => $word) {
             $matchers[] = sprintf('/%s/iuS', $word);
+            // We need remove RegEx escaping for
+            // replacement at addPass below.
+            $words[$k] = stripslashes($word);
         }
 
         $this->addPass($matchers, $words);
