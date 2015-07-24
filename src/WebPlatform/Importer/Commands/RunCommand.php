@@ -13,9 +13,9 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Filesystem\Filesystem;
 use Prewk\XmlStringStreamer;
-use Bit3\GitPhp\GitRepository;
 use Bit3\GitPhp\GitException;
 
+use WebPlatform\Importer\GitPhp\GitRepository;
 use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
 
@@ -240,6 +240,18 @@ DESCR;
                     // An edge case where MediaWiki may give author as user_id 0, even though we dont have it
                     // so we’ll give the first user instead.
                     $contributor_id = ($wikiRevision->getContributorId() === 0)?1:$wikiRevision->getContributorId();
+
+                    /**
+                     * Fix Renoir’s duplicates and merge them as only one
+                     *
+                     * Queried using jq;
+                     *
+                     *     cat data/users.json | jq '.[]|select(.user_real_name == "Renoir Boulanger")'
+                     */
+                    if (in_array($contributor_id, [172943, 173060])) {
+                        $contributor_id = 10080;
+                    }
+
                     if (isset($this->users[$contributor_id])) {
                         $contributor = clone $this->users[$contributor_id]; // We want a copy, because its specific to here only anyway.
                         $wikiRevision->setContributor($contributor, false);
@@ -299,11 +311,26 @@ DESCR;
                         }
 
                         if ($passNbr < 3) {
+
+                            // We won’t expose all WebPlatform user emails to the public. Instead,
+                            // we’ll create a bogus email alias based on their MediaWiki username.
+                            $real_name = $wikiRevision->getContributor()->getRealName();
+                            $username = $wikiRevision->getContributor()->getName();
+                            $email = sprintf('%s@docs.webplatform.org', $username);
+                            $author_overload = sprintf('%s <%s>', $real_name, $email);
+
                             try {
                                 $this->git
                                     ->commit()
+                                    // In order to enforce git to use the same commiter data
+                                    // than the author’s we had to overload CommitCommandBuilder
+                                    // class.
+                                    //
+                                    // In WebPlatform\Importer\GitPhp\CommitCommandBuilder, we
+                                    // overload [date, author] methods so we can inject the same
+                                    // matching GIT_COMMITTER_* values at commit time.
                                     ->message($persistArgs['message'])
-                                    ->author('"'.$persistArgs['author'].'"')
+                                    ->author('"'.$author_overload.'"')
                                     ->date('"'.$persistArgs['date'].'"')
                                     ->allowEmpty()
                                     ->execute();
@@ -328,7 +355,9 @@ DESCR;
                                 $this->git
                                     ->commit()
                                     ->message('Remove file; '.$persistArgs['message'])
-                                    ->author('"'.$persistArgs['author'].'"')
+                                    // ... no need to worry here. We overloaded author, date
+                                    // remember?
+                                    ->author('"'.$author_overload.'"')
                                     ->date('"'.$persistArgs['date'].'"')
                                     ->allowEmpty()
                                     ->execute();
@@ -353,9 +382,6 @@ DESCR;
                 $this->git
                     ->commit()
                     ->message($revision->getComment())
-                    ->author('"'.$persistArgs['author'].'"')
-                    ->date('"'.$persistArgs['date'].'"')
-                    ->allowEmpty()
                     ->execute();
 
             } catch (GitException $e) {
