@@ -349,6 +349,9 @@ DESCR;
         }
         $this->filesystem->dumpFile("reports/sanity_redirects.txt", implode(PHP_EOL, $sanity_redirects_out));
 
+        // Last minute redirects?
+        $redirects['after'] = 'css/selectors/pseudo-elements/after';
+
         $redirects_out = array('Redirects (from => to):');
         foreach ($redirects as $url => $redirect_to) {
             $redirects_out[] = sprintf(' - "%s": "%s"', $url, $redirect_to);

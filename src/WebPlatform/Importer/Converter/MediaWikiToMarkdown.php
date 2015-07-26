@@ -10,6 +10,9 @@ use WebPlatform\ContentConverter\Model\AbstractRevision;
 use WebPlatform\ContentConverter\Model\MediaWikiRevision;
 use WebPlatform\ContentConverter\Model\MarkdownRevision;
 use WebPlatform\ContentConverter\Filter\AbstractFilter;
+use WebPlatform\ContentConverter\Converter\ConverterInterface;
+
+use Exception;
 
 /**
  * MediaWiki Wikitext to Markdown Converter.
@@ -33,35 +36,52 @@ class MediaWikiToMarkdown extends AbstractFilter implements ConverterInterface
 {
     protected $leave_template_note = false;
 
+    protected $apiUrl;
+
     // Make stateless #TODO
     protected $transclusionCache = array();
 
     protected static $front_matter_transclusions = array(
-                                                        'Flags',
-                                                        'Topics',
-                                                        'External_Attribution',
-                                                        'Standardization_Status',
-                                                        'See_Also_Section',
+                                                        //'topics',
+                                                        //'standardization_status',
+                                                        //'page_title',
+                                                        //'flags',
                                                     );
 
     public static function toFrontMatter($transclusions)
     {
         $out = array();
         foreach ($transclusions as $t) {
-            if (isset($t['type']) && in_array($t['type'], self::$front_matter_transclusions)) {
-                $type = strtolower($t['type']);
-                if ($t['type'] === 'Topics' && isset($t['members'][0])) {
-                    $out['tags'] = $t['members'][0];
-                } elseif ($t['type'] === 'Standardization_Status' && isset($t['members']['content'])) {
+            if (isset($t['type']) && in_array(str_replace(' ', '_', strtolower($t['type'])), self::$front_matter_transclusions)) {
+                $type = str_replace(' ', '_', strtolower($t['type']));
+                if ($type === 'page_title' && isset($t['members']['content'])) {
+                    $out['title'] = $t['members']['content'];
+                }
+                /*
+                if ($type === 'topics' && isset($t['members'][0])) {
+                    $out['tags'] = array_map('trim', $t['members'][0]);
+                } elseif ($type === 'standardization_status' && isset($t['members']['content'])) {
                     $out[$type] = $t['members']['content'];
-                } elseif ($t['type'] === 'Flags' && isset($t['members']['Content'])) {
-                    $out[$type] = $t['members'];
-                    $out[$type]['issues'] = explode(', ', $t['members']['High-level issues']);
-                    $out[$type]['content'] = explode(', ', $t['members']['Content']);
-                    unset($out[$type]['Content'], $out[$type]['High-level issues']);
+                } elseif ($type === 'page_title' && isset($t['members']['content'])) {
+                    $out['title'] = $t['members']['content'];
+                } elseif ($type === 'flags' && isset($t['members'])) {
+                    //$out[$type] = $t['members'];
+                    foreach ($t['members'] as $flagKey => $flagV) {
+                        $fkey = strtolower($flagKey);
+                        if ($fkey === 'high-level issues') {
+                            $out[$type]['issues'] = explode(', ', $flagV);
+                        } elseif ($fkey === 'content') {
+                            $out[$type]['content'] = $flagV;
+                        } elseif ($fkey === 'editorial notes') {
+                            $out[$type]['editorial'] = $flagV;
+                        } elseif ($fkey === 'state') {
+                            $out[$type]['state'] = $flagV;
+                        }
+                    }
                 } else {
                     $out[$type] = $t['members'];
                 }
+                */
             }
         }
 
@@ -124,7 +144,7 @@ class MediaWikiToMarkdown extends AbstractFilter implements ConverterInterface
                 // Treat entries that has coma separated, make them array
                 $members[] = explode(',', $arg);
             } else {
-                // Treant entries that doesn’t have equals, nor coma
+                // Treat entries that doesn’t have equals, nor coma
                 $value = trim($arg);
                 if (!empty($value)) {
                     $members['content'] = $value;
@@ -141,6 +161,14 @@ class MediaWikiToMarkdown extends AbstractFilter implements ConverterInterface
 
     public function __construct()
     {
+        $apiUrl  = 'https://docs.webplatform.org';
+        //$apiUrl  = 'http://127.0.0.1:8080';
+        //$apiUrl  = 'https://docs.webplatformstaging.org';
+        $apiUrl .= '/w/api.php?format=json&action=parse&prop=text|links|templates|';
+        $apiUrl .= 'images|externallinks|categories|sections|headitems|displaytitle|iwlinks|properties&pst=1';
+        $apiUrl .= '&disabletoc=true&disablepp=true&disableeditsection=true&preview=true&page=';
+
+        $this->apiUrl = $apiUrl;
 
         /*
          * PASS 1: MediaWiki markup caveats that has to be fixed first
@@ -148,33 +176,35 @@ class MediaWikiToMarkdown extends AbstractFilter implements ConverterInterface
         $patterns[] = array(
           // Has to match something like; "|Manual_sections==== 練習問題 ==="
           // in a case where key-value is mingled with a section title, containing a one-too-many equal sign
-          "/^\|([a-z_]+)\=(\=)\ ?(.*)\ ?(\=)\s+?/im",
-          "/^\|([a-z_]+)\=(\=\=)\ ?(.*)\ ?(\=\=)\s+?/im",
-          "/^\|([a-z_]+)\=(\=\=\=)\ ?(.*)\ ?(\=\=\=)\s+?/im",
-          "/^\|([a-z_]+)\=(\=\=\=\=)\ ?(.*)\ ?(\=\=\=\=)\s+?/im",
-          "/^\|([a-z_]+)\=(\=\=\=\=\=)\ ?(.*)\ ?(\=\=\=\=\=)\s+?/im",
-          "/^\|([a-z_]+)\=(\=\=\=\=\=\=)\ ?(.*)\ ?(\=\=\=\=\=\=)\s+?/im",
+          "/^\|([a-z_]+)\=(\=)\ ?(.*)\ ?(\=)\s+?/",
+          "/^\|([a-z_]+)\=(\=\=)\ ?(.*)\ ?(\=\=)\s+?/",
+          "/^\|([a-z_]+)\=(\=\=\=)\ ?(.*)\ ?(\=\=\=)\s+?/",
+          "/^\|([a-z_]+)\=(\=\=\=\=)\ ?(.*)\ ?(\=\=\=\=)\s+?/",
+          "/^\|([a-z_]+)\=(\=\=\=\=\=)\ ?(.*)\ ?(\=\=\=\=\=)\s+?/",
+          "/^\|([a-z_]+)\=(\=\=\=\=\=\=)\ ?(.*)\ ?(\=\=\=\=\=\=)\s+?/",
         );
 
         $replacements[] = array(
-          "|$1=\n$2 $3 $4",
-          "|$1=\n$2 $3 $4",
-          "|$1=\n$2 $3 $4",
-          "|$1=\n$2 $3 $4",
-          "|$1=\n$2 $3 $4",
-          "|$1=\n$2 $3 $4",
+          "|$1=\n$2$3$4",
+          "|$1=\n$2$3$4",
+          "|$1=\n$2$3$4",
+          "|$1=\n$2$3$4",
+          "|$1=\n$2$3$4",
+          "|$1=\n$2$3$4",
         );
 
         /**
          * PASS 2
          */
         $patterns[] = array(
-          "/^\=[^\s](.*)[^\s]\=/im",
-          "/^\=\=[^\s](.*)[^\s]\=\=/im",
-          "/^\=\=\=[^\s](.*)[^\s]\=\=\=/im",
-          "/^\=\=\=\=[^\s](.*)[^\s]\=\=\=\=/im",
-          "/^\=\=\=\=\=[^\s](.*)[^\s]\=\=\=\=\=/im",
-          "/^\=\=\=\=\=\=[^\s](.*)[^\s]\=\=\=\=\=\=/im",
+          "/^\=\ (.*)\ \=/",
+          "/^\=\=\ (.*)\ \=\=/",
+          "/^\=\=\=\ (.*)\ \=\=\=/",
+          "/^\=\=\=\=\ (.*)\ \=\=\=\=/",
+          "/^\=\=\=\=\=\ (.*)\ \=\=\=\=\=/",
+          "/^\=\=\=\=\=\=\ (.*)\ \=\=\=\=\=\=/",
+        );
+        /*
 
           // Explicit delete of empty stuff
           "/^\|("
@@ -191,36 +221,41 @@ class MediaWikiToMarkdown extends AbstractFilter implements ConverterInterface
             .'Notes_Section'
           .")\n\}\}/im",
 
-          "/^<syntaxhighlight(?:\ lang=\"?(\w)\"?)?>/im",
+          "/^<syntaxhighlight(?:\ lang=\"?(\w)\"?)?>/i",
         );
+        */
 
         $replacements[] = array(
-          '= $1 =',
-          '== $1 ==',
-          '=== $1 ===',
-          '==== $1 ====',
-          '===== $1 =====',
-          '====== $1 ======',
+          '=$1=',
+          '==$1==',
+          '===$1===',
+          '====$1====',
+          '=====$1=====',
+          '======$1======',
+        );
+        /*
 
           '',
           '',
 
           "```$1\n",
         );
+        */
 
         /**
          * PASS 3
          */
+         /*
         $patterns[] = array(
           "/\r\n/",
 
           // Headings
-          '/^=\ (.+?)\ =$/m',
-          '/^==\ (.+?)\ ==$/m',
-          '/^===\ (.+?)\ ===$/m',
-          '/^====\ (.+?)\ ====$/m',
-          '/^=====\ (.+?)\ =====$/m',
-          '/^======\ (.+?)\ ======$/m',
+          '/^\=(.+?)\=$/m',
+          '/^\=\=(.+?)\=\=$/m',
+          '/^\=\=\=(.+?)=\=\=$/m',
+          '/^\=\=\=\=(.+?)\=\=\=\=$/m',
+          '/^\=\=\=\=\=(.+?)\=\=\=\=\=$/m',
+          '/^\=\=\=\=\=\=(.+?)\=\=\=\=\=\=$/m',
           "/^\{\{Page_Title\}\}.*$/im",
           "/^\{\{Compatibility_Section/im",
           "/^\{\{Notes_Section\n\|Notes\=/im",
@@ -407,11 +442,12 @@ class MediaWikiToMarkdown extends AbstractFilter implements ConverterInterface
           // Hopefully not too far-reaching
           '',
           '',
-        );
+        ); */
 
         /**
          * PASS 4
          */
+        /*
         $patterns[] = array(
           "/\'\'\'\'\'(.+?)\'\'\'\'\'/s",
           "/\'\'\'(.+?)\'\'\'/s",
@@ -435,6 +471,7 @@ class MediaWikiToMarkdown extends AbstractFilter implements ConverterInterface
           "```\n",
           "\n```",
         );
+        */
 
         /*
          * Work with links
@@ -492,6 +529,41 @@ class MediaWikiToMarkdown extends AbstractFilter implements ConverterInterface
         return $this;
     }
 
+    protected function makeRequest($title)
+    {
+
+        $opts = array(
+          'http'=>array(
+            'method'=>"GET",
+            'header'=>"Accept-language: en\r\n" .
+                      "Cookie: foo=bar\r\n"
+          )
+        );
+
+        $context = stream_context_create($opts);
+
+        try {
+            $content = file_get_contents($this->apiUrl.urlencode($title), false, $context);
+        } catch (Exception $e) {
+            throw new Exception('Could not retrieve data from remote service', null, $e);
+        }
+
+        return mb_convert_encoding($content, 'UTF-8',
+               mb_detect_encoding($content, 'UTF-8, ISO-8859-1', true));
+    }
+
+    protected function getPageFromApi($title)
+    {
+        $recv = $this->makeRequest($title);
+        $dto = json_decode($recv, true);
+
+        if (!isset($dto['parse']) || !isset($dto['parse']['text'])) {
+            throw new Exception('We did could not use data we received');
+        }
+
+        return $dto['parse']['text']['*'];
+    }
+
     /**
      * Apply Wikitext rewrites.
      *
@@ -501,6 +573,7 @@ class MediaWikiToMarkdown extends AbstractFilter implements ConverterInterface
      */
     public function apply(AbstractRevision $revision)
     {
+
         // ...stateless (NOT! Gotta fix #TODO)
         $this->transclusionCache = array();
 
@@ -508,9 +581,9 @@ class MediaWikiToMarkdown extends AbstractFilter implements ConverterInterface
             $content = $this->filter($revision->getContent());
 
             // Should we make a loop for that?
-            $content = preg_replace_callback("/^\{\{(.*?)\}\}$/imus", array($this, 'helperTemplateMatchHonker'), $content);
-            $content = preg_replace_callback('/\[([^\[\]\|\n\': ]+)\]/', 'self::helperExternlinks', $content);
-            $content = preg_replace_callback('/\[?\[([^\[\]\|\n\' ]+)[\| ]([^\]\']+)\]\]?/', 'self::helperExternlinks', $content);
+            //$content = preg_replace_callback("/^\{\{(.*?)\}\}$/imus", array($this, 'helperTemplateMatchHonker'), $content);
+            //$content = preg_replace_callback('/\[([^\[\]\|\n\': ]+)\]/', 'self::helperExternlinks', $content);
+            //$content = preg_replace_callback('/\[?\[([^\[\]\|\n\' ]+)[\| ]([^\]\']+)\]\]?/', 'self::helperExternlinks', $content);
 
             $front_matter = self::toFrontMatter($this->transclusionCache);
 
@@ -520,6 +593,9 @@ class MediaWikiToMarkdown extends AbstractFilter implements ConverterInterface
             }
 
             $rev_matter = $revision->getFrontMatterData();
+
+            $content = $this->getPageFromApi($revision->getTitle());
+
             $newRev = new MarkdownRevision($content, array_merge($rev_matter, $front_matter));
 
             return $newRev->setTitle($revision->getTitle());

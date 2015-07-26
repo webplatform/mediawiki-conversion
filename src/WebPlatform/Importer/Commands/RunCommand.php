@@ -81,6 +81,7 @@ DESCR;
             ->setDefinition(
                 [
                     new InputArgument('pass', InputArgument::REQUIRED, 'The pass number: 1,2,3', null),
+                    new InputOption('resume-at', '', InputOption::VALUE_OPTIONAL, 'Resume run at a specific XML document index number ', 0),
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per page ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of pages', 0),
                     new InputOption('git', '', InputOption::VALUE_NONE, 'Do run git import (write to filesystem is implicit), defaults to false'),
@@ -95,7 +96,8 @@ DESCR;
         $this->titleFilter = new TitleFilter;
 
         $useGit = $input->getOption('git');
-        $maxHops = (int) $input->getOption('max-pages');    // Maximum number of pages we go through
+        $resumeAt = (int) $input->getOption('resume-at');
+        $maxHops = (int) $input->getOption('max-pages');   // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
         $passNbr = (int) $input->getArgument('pass');
 
@@ -143,8 +145,12 @@ DESCR;
         }
 
         while ($node = $streamer->getNode()) {
+            if ($counter < $resumeAt) {
+                ++$counter;
+                continue;
+            }
             if ($maxHops > 0 && $maxHops === $counter) {
-                $output->writeln(sprintf('Reached desired maximum of %d documents', $maxHops).PHP_EOL.PHP_EOL);
+                $output->writeln(sprintf('Reached desired maximum of %d documents', $maxHops).PHP_EOL);
                 break;
             }
             $pageNode = new SimpleXMLElement($node);
@@ -156,19 +162,24 @@ DESCR;
                 $title = $wikiDocument->getTitle();
                 $normalized_location = $wikiDocument->getName();
                 $file_path  = $this->titleFilter->filter($persistable->getName());
-                $has_redirect = $wikiDocument->hasRedirect();
                 $redirect_to = $this->titleFilter->filter($wikiDocument->getRedirect()); // False if not a redirect, string if it is
 
                 $is_translation = $wikiDocument->isTranslation();
                 $language_code = $wikiDocument->getLanguageCode();
                 $language_name = $wikiDocument->getLanguageName();
 
+                if ($passNbr === 3 && $wikiDocument->hasRedirect() === false) {
+                    $random = rand(5, 10);
+                    $output->writeln(PHP_EOL.sprintf('--- sleep for %d to not break production ---', $random));
+                    sleep($random);
+                }
+
                 $output->writeln(sprintf('"%s":', $title));
 
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
 
-                if ($has_redirect === true) {
+                if ($wikiDocument->hasRedirect() === true) {
                     $output->writeln(sprintf('  - redirect_to: %s', $redirect_to));
                 }
 
@@ -207,14 +218,13 @@ DESCR;
 
                 $revs  = $wikiDocument->getRevisions()->count();
                 $output->writeln(sprintf('  - index: %d', $counter));
-                $output->writeln(sprintf('  - revs: %d', $revs));
-                $output->writeln(sprintf('  - revisions:'));
 
                 $revList = $wikiDocument->getRevisions();
                 $revLast = $wikiDocument->getLatest();
                 $revCounter = 0;
 
                 if ($passNbr === 3) {
+
                     // Overwriting $revList for last pass we’ll
                     // use for conversion.
                     $revList = new SplDoublyLinkedList;
@@ -225,9 +235,12 @@ DESCR;
                         $revLast->setFrontMatter(array('lang'=>$language_code));
                     }
                     $revList->push($revLast);
+                } else {
+                    $output->writeln(sprintf('  - revs: %d', $revs));
+                    $output->writeln(sprintf('  - revisions:'));
                 }
 
-                /** ----------- REVISION --------------- **/
+                /** ----------- REVISIONS --------------- **/
                 for ($revList->rewind(); $revList->valid(); $revList->next()) {
                     if ($revMaxHops > 0 && $revMaxHops === $revCounter) {
                         $output->writeln(sprintf('    - stop: Reached maximum %d revisions', $revMaxHops).PHP_EOL.PHP_EOL);
@@ -264,10 +277,14 @@ DESCR;
 
                     // Lets handle conversion only at 3rd pass.
                     if ($passNbr === 3) {
+
                         try {
                             $revision = $this->converter->apply($wikiRevision);
                         } catch (Exception $e) {
-                            throw new Exception(sprintf('Could not do conversion of %s', $wikiDocument->getTitle()), null, $e);
+                            $output->writeln(sprintf('    - ERROR: %s, left a note in errors/%d.txt', $e->getMessage(), $counter));
+                            $this->filesystem->dumpFile(sprintf('errors/%d.txt', $counter), print_r($e, true));
+                            ++$counter;
+                            continue;
                         }
 
                         // user_id 10080 is Renoirb (yours truly)
@@ -363,17 +380,18 @@ DESCR;
                                     ->execute();
 
                                 $this->filesystem->remove($file_path);
+
                             }
-                        }
-                    }
+                        } /* End of $passNubr === 3 */
+                    } /* End of $useGit === true */
 
                     ++$revCounter;
                 }
-                /** ----------- REVISION --------------- **/
+                /** ----------- REVISIONS --------------- **/
+                $output->writeln(PHP_EOL);
 
-                $output->writeln(PHP_EOL.PHP_EOL);
-                ++$counter;
             }
+            ++$counter;
         }
 
         if ($passNbr === 3) {
