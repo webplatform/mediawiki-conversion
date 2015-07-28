@@ -69,6 +69,7 @@ DESCR;
 
         $displayIndex = $input->getOption('indexes');
         $displayAuthor = $input->getOption('display-author');
+
         $maxHops = (int) $input->getOption('max-pages');    // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
 
@@ -77,8 +78,8 @@ DESCR;
         $pages = [];
         $problematicAuthors = [];
         $urlParts = [];
-        $urlsWithContent = [];
 
+        $urlsWithContent = [];
         $moreThanHundredRevs = [];
         $translations = [];
         $sanity_redirs = [];
@@ -127,7 +128,6 @@ DESCR;
                 $title = $wikiDocument->getTitle();
                 $normalized_location = $wikiDocument->getName();
                 $file_path  = $this->titleFilter->filter($persistable->getName());
-                $has_redirect = $wikiDocument->hasRedirect();
                 $redirect_to = $this->titleFilter->filter($wikiDocument->getRedirect()); // False if not a redirect, string if it is
 
                 $is_translation = $wikiDocument->isTranslation();
@@ -143,7 +143,7 @@ DESCR;
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
 
-                if ($has_redirect === true) {
+                if ($wikiDocument->hasRedirect() === true) {
                     $output->writeln(sprintf('  - redirect_to: %s', $redirect_to));
                 } else {
                     $urlsWithContent[] = $title;
@@ -224,7 +224,7 @@ DESCR;
 
                 // Which pages are directly on /wiki/foo. Are there some we
                 // should move elsewhere such as the glossary items?
-                if (count(explode('/', $title)) == 1 && $has_redirect === false) {
+                if (count(explode('/', $title)) == 1 && $wikiDocument->hasRedirect() === false) {
                     $directlyOnRoot[] = $title;
                 }
 
@@ -260,7 +260,7 @@ DESCR;
                 // 2. Get list of pages
                 //
                 // If we have a page duplicate, throw an exception!
-                if ($has_redirect === true) {
+                if ($wikiDocument->hasRedirect() === true) {
                     // Pages we know are redirects within MediaWiki, we won’t
                     // pass them within the $pages aray because they would be
                     // empty content with only a redirect anyway.

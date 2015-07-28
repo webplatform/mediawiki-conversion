@@ -20,7 +20,7 @@ use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
 
 use WebPlatform\Importer\Model\MediaWikiDocument;
-use WebPlatform\Importer\Converter\MediaWikiToMarkdown;
+use WebPlatform\Importer\Converter\MediaWikiToHtml;
 use WebPlatform\Importer\Filter\TitleFilter;
 
 use SplDoublyLinkedList;
@@ -37,7 +37,7 @@ class RunCommand extends Command
 {
     protected $users = array();
 
-    /** @var WebPlatform\ContentConverter\Converter\MediaWikiToMarkdown Symfony Filesystem handler */
+    /** @var WebPlatform\ContentConverter\Converter\MediaWikiToHtml Symfony Filesystem handler */
     protected $converter;
 
     /** @var Symfony\Component\Filesystem\Filesystem Symfony Filesystem handler */
@@ -82,6 +82,7 @@ DESCR;
                 [
                     new InputArgument('pass', InputArgument::REQUIRED, 'The pass number: 1,2,3', null),
                     new InputOption('resume-at', '', InputOption::VALUE_OPTIONAL, 'Resume run at a specific XML document index number ', 0),
+                    new InputOption('retry', '', InputOption::VALUE_OPTIONAL, 'List of indexes you want to query again', null),
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per page ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of pages', 0),
                     new InputOption('git', '', InputOption::VALUE_NONE, 'Do run git import (write to filesystem is implicit), defaults to false'),
@@ -95,11 +96,14 @@ DESCR;
         $this->filesystem = new Filesystem;
         $this->titleFilter = new TitleFilter;
 
+        $passNbr = (int) $input->getArgument('pass');
+
         $useGit = $input->getOption('git');
+        $retries = explode(',', $input->getOption('retry'));
         $resumeAt = (int) $input->getOption('resume-at');
+
         $maxHops = (int) $input->getOption('max-pages');   // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
-        $passNbr = (int) $input->getArgument('pass');
 
         $counter = 0;    // Increment the number of pages we are going through
         $redirects = [];
@@ -107,13 +111,38 @@ DESCR;
         $problematicAuthors = [];
         $urlParts = [];
 
+        if (count($retries) >= 1 && $retries[0] !== '' && $passNbr !== 3) {
+            throw new DomainException('Retry option is only supported at 3rd pass');
+        }
+
         if ($useGit === true) {
             $repoInitialized = (realpath(GIT_OUTPUT_DIR.'/.git') === false)?false:true;
-            //die(var_dump(array($repoInitialized, realpath(GIT_OUTPUT_DIR))));
             $this->git = new GitRepository(realpath(GIT_OUTPUT_DIR));
             if ($repoInitialized === false) {
                 $this->git->init()->execute();
             }
+        }
+
+        if ($passNbr === 3) {
+            /**
+             * Your MediaWiki API URL
+             */
+            $apiUrl = 'https://docs.webplatform.org';
+            //$apiUrl  = 'http://127.0.0.1:8080';
+            $apiUrl .= '/w/api.php?format=json&action=parse&prop=text|links|templates|';
+            $apiUrl .= 'images|externallinks|categories|sections|headitems|displaytitle|iwlinks|properties&pst=1';
+            $apiUrl .= '&disabletoc=true&disablepp=true&disableeditsection=true&preview=true&page=';
+
+            // We are at conversion pass, instantiate our Converter!
+            $this->converter = new MediaWikiToHtml;
+            $this->converter->setApiUrl($apiUrl);
+
+            sort($retries);
+            if (count($retries) < 1) {
+                unset($retries);
+            }
+        } else {
+            unset($retries);
         }
 
         /** -------------------- Author --------------------
@@ -139,20 +168,58 @@ DESCR;
         $streamer = XmlStringStreamer::createStringWalkerParser($file);
         /** -------------------- /XML source -------------------- **/
 
-        if ($passNbr === 3) {
-            // We are at conversion pass, instantiate our Converter!
-            $this->converter = new MediaWikiToMarkdown;
-        }
-
         while ($node = $streamer->getNode()) {
+
+            /**
+             * 3rd pass, handle retries.
+             *
+             * This is useful if you went through all pages but some pages didn’t work.
+             * We can ask to re-run only specific ones by using --retry= and a coma separated
+             * list of index numbers (i.e. the $counter value we use for each page node).
+             *
+             * This set of case handles three situations only at 3rd pass AND when command has
+             * --retry=n,n,n specified.
+             *
+             * 1. If current iteration ($counter) *matches* one of the $retries entries
+             *
+             *    We want to let the process be executed through and added as a revision
+             *
+             * 2. Current iteration ($counter) *isn’t listed* in $retries; go to next.
+             *
+             * 3. We have no entries in $retries anymore, exit.
+             */
+            if (isset($retries) && in_array($counter, $retries)) {
+                $retryNodeIndex = array_search($counter, $retries);
+                unset($retries[$retryNodeIndex]);
+                $output->writeln(PHP_EOL.sprintf('Will work on %d', $counter).PHP_EOL);
+            } elseif (isset($retries) && count($retries) >= 1) {
+                ++$counter;
+                continue;
+            } elseif (isset($retries) && count($retries) === 0) {
+                $output->writeln('No more retries to work with'.PHP_EOL);
+                break;
+            }
+
+            /**
+             * 3rd pass, handle interruption by telling where to resume work.
+             *
+             * This is useful if job stopped and you want to resume work back at a specific point.
+             */
             if ($counter < $resumeAt) {
                 ++$counter;
                 continue;
             }
+
+            /**
+             * Limit the number of pages we’ll work on.
+             *
+             * Useful if you want to test conversion script without going through all the content.
+             */
             if ($maxHops > 0 && $maxHops === $counter) {
                 $output->writeln(sprintf('Reached desired maximum of %d documents', $maxHops).PHP_EOL);
                 break;
             }
+
             $pageNode = new SimpleXMLElement($node);
             if (isset($pageNode->title)) {
 
@@ -168,6 +235,8 @@ DESCR;
                 $language_code = $wikiDocument->getLanguageCode();
                 $language_name = $wikiDocument->getLanguageName();
 
+                $revs  = $wikiDocument->getRevisions()->count();
+
                 if ($passNbr === 3 && $wikiDocument->hasRedirect() === false) {
                     $random = rand(5, 10);
                     $output->writeln(PHP_EOL.sprintf('--- sleep for %d to not break production ---', $random));
@@ -175,7 +244,7 @@ DESCR;
                 }
 
                 $output->writeln(sprintf('"%s":', $title));
-
+                $output->writeln(sprintf('  - index: %d', $counter));
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
 
@@ -183,8 +252,12 @@ DESCR;
                     $output->writeln(sprintf('  - redirect_to: %s', $redirect_to));
                 }
 
+                if ($is_translation === true) {
+                    $output->writeln(sprintf('  - lang: %s (%s)', $language_code, $language_name));
+                }
+
                 /**
-                 * Objective; merge deleted content history under current content.
+                 * Merge deleted content history under current content.
                  *
                  * 1st pass: Only those with redirects (i.e. deleted pages). Should leave an empty out/ directory!
                  * 2nd pass: Only those without redirects (i.e. current content).
@@ -208,16 +281,9 @@ DESCR;
                     throw new DomainException('This command has only three pases.');
                 }
 
-                if ($is_translation === true) {
-                    $output->writeln(sprintf('  - lang: %s', $language_code));
-                }
-
                 foreach (explode("/", $normalized_location) as $urlDepth => $urlPart) {
                     $urlParts[strtolower($urlPart)] = $urlPart;
                 }
-
-                $revs  = $wikiDocument->getRevisions()->count();
-                $output->writeln(sprintf('  - index: %d', $counter));
 
                 $revList = $wikiDocument->getRevisions();
                 $revLast = $wikiDocument->getLatest();
@@ -255,15 +321,17 @@ DESCR;
                     $contributor_id = ($wikiRevision->getContributorId() === 0)?1:$wikiRevision->getContributorId();
 
                     /**
-                     * Fix Renoir’s duplicates and merge them as only one
+                     * Fix duplicates and merge them as only one.
+                     *
+                     * Please adjust to suit your own.
                      *
                      * Queried using jq;
                      *
                      *     cat data/users.json | jq '.[]|select(.user_real_name == "Renoir Boulanger")'
                      */
-                    if (in_array($contributor_id, [172943, 173060])) {
-                        $contributor_id = 10080;
-                    }
+                    //if (in_array($contributor_id, [172943, 173060])) {
+                    //    $contributor_id = 10080;
+                    //}
 
                     if (isset($this->users[$contributor_id])) {
                         $contributor = clone $this->users[$contributor_id]; // We want a copy, because its specific to here only anyway.
@@ -282,7 +350,7 @@ DESCR;
                             $revision = $this->converter->apply($wikiRevision);
                         } catch (Exception $e) {
                             $output->writeln(sprintf('    - ERROR: %s, left a note in errors/%d.txt', $e->getMessage(), $counter));
-                            $this->filesystem->dumpFile(sprintf('errors/%d.txt', $counter), print_r($e, true));
+                            $this->filesystem->dumpFile(sprintf('errors/%d.txt', $counter), $title);
                             ++$counter;
                             continue;
                         }
@@ -290,7 +358,6 @@ DESCR;
                         // user_id 10080 is Renoirb (yours truly)
                         $revision->setAuthor($this->users[10080]);
                         $revision_id = $revLast->getId();
-                        $output->writeln(sprintf('    - id: %d', $revision_id));
                     } else {
                         $revision = $wikiRevision;
                         $revision_id = $wikiRevision->getId();
@@ -299,12 +366,13 @@ DESCR;
                     }
 
                     $persistArgs = $persistable->setRevision($revision)->getArgs();
-                    foreach ($persistArgs as $argKey => $argVal) {
-                        if ($argKey === 'message') {
-                            $argVal = mb_strimwidth($argVal, strpos($argVal, ': ') + 2, 100);
+                    if ($passNbr < 3) {
+                        foreach ($persistArgs as $argKey => $argVal) {
+                            if ($argKey === 'message') {
+                                $argVal = mb_strimwidth($argVal, strpos($argVal, ': ') + 2, 100);
+                            }
+                            $output->writeln(sprintf('      %s: %s', $argKey, $argVal));
                         }
-                        $output->writeln(sprintf('      %s: %s', $argKey, $argVal));
-
                     }
 
                     $removeFile = false;
@@ -395,7 +463,7 @@ DESCR;
         }
 
         if ($passNbr === 3) {
-            $output->writeln('Third pass. One. Commit.'.PHP_EOL.PHP_EOL);
+            $output->writeln('3rd pass. One. Commit.'.PHP_EOL.PHP_EOL);
             try {
                 $this->git
                     ->commit()

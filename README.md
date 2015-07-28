@@ -1,31 +1,23 @@
 # Export MediaWiki into flat files
 
-**Work in Progress!!**
-
 ## Features
 
-* Use recommended MediaWiki way of backups (i.e. `maintenance/dumpBackup.php`)
-* Ability to run script from backed up xml files (i.e. once we have XML files, no need to run script on same server)
+* Convert MediaWiki wiki page history into Git repository
+* Dump every page into text files, organized by their url (e.g. `css/properties`, `css/properties/index.txt`), without any modifications
+* Read data from MediaWiki’s recommended MediaWiki way of backups (i.e. `maintenance/dumpBackup.php`)
+* Get "reports" about the content: deleted pages, redirects, translations, number of revisions per page
+* Harmonize titles and converts into valid file name (e.g. replace :,(,))
+* Create list of rewrite rules to keep original URLs refering back to harmonized file name
+* Write history of deleted pages "underneath" history of current content
+* Ability to run script from backed up XML file (i.e. once we have XML files, no need to run script on same server)
 * Import metadata such as Categories, and list of authors into generated files
-
-
-### Roadmap
-
-**Priorities**:
-
-1. Dump every page into text files, organized by their url (e.g. `css/properties`, `css/properties/index.txt`), without any modifications
-1. Import metadata such as Categories into new file
-1. Create different file per language
-
-
-**Nice to have**:
-
-1. Set in place conversion mechanism to transform into Markdown or ReStructed
-1. Recover history per each document
-
+* Ability to detect if a page is a translation, create a file in the same folder with language name
 
 
 ## Steps
+
+
+### Gather MediaWiki backup and user data
 
 1. Make sure the folder `mediawiki/` exists side by side with this repository and that you can use the MediaWiki instance.
 
@@ -46,37 +38,117 @@
 1. **NOTE** Once here, we do not need to run the remaining from the same machine as the one we run MediaWiki
 
 
-## Dependencies
+### Run import
 
-* [Symfony2 Console](https://github.com/symfony/Console) to run from the terminal
-* [Symfony2 Process](https://github.com/symfony/Process) to fork processes and speed up import
-* [Symfony2 Finder](https://github.com/symfony/Finder) to find files in filesystem
-* [Symfony2 Filesystem](https://github.com/symfony/Filesystem) to write into the filesystem
-* [Symfony2 HttpFoundation](https://github.com/symfony/HttpFoundation) to leverage reading as a stream large files.
-* [Doctrine2 annotations](https://github.com/doctrine/annotations) to leverage @annotations in entity classes and tests
-* [Doctrine2 collections](https://github.com/doctrine/collections)
+MediaWiki isn’t required locally.
 
-## See also
+Make sure that you have a copy of your data available in a MediaWiki installation running with data, we´ll use the API
+to get the parser to give us the generated HTML at the 3rd pass.
 
-* [Export MediaWiki gist](https://gist.github.com/renoirb/ad878a58092473267f26)
-* [MediaWiki to Confluence migration](http://www.slideshare.net/NilsHofmeister/aughh-confluence)
+1. Get a "feel" of your data
 
+  Run this command and you’ll know which pages are marked as deleted in history, the redirects, how the files will be called
+  and so on. This gives out a very verbosic output, you may want to send the output to a file.
 
+  This command makes no external requests, it only reads `data/users.json` (from `make dumpBackup` earlier) and
+  the dumpBackup XML file in `data/dumps/main_full.xml`.
 
-# Redirects to fix or be case insensitive
+          mkdir reports
+          app/console mediawiki:summary > reports/summary.yml
 
-## css/cssom/stylesheet redirects to css/cssom/styleSheet
+  You can review WebPlatform Docs content summary that was in MediaWiki until 2015-07-28 in `reports/` directory of
+  [webplatform/mediawiki-conversion][mwc] repository.
 
-e.g.
-
-* css/cssom/styleSheet/removeImport
-* css/cssom/styleSheet/removeRule
+  More in [#Reports]
 
 
-## CSS/Selectors redirects to css/selectors
+1. Create `errors/` directory.
 
-* CSS/Selectors/pseudo-classes/:target to css/selectors/pseudo-classes/target
+  That’s where the script will create file with the index counter number where we couldn’t get MediaWiki API render action
+  to give us HTML output at 3rd pass.
 
-## dom/DomTokenList redirects to dom/DOMTokenList
+          mkdir errors
 
-* dom/DOMTokenList/item
+
+1. Create `out/` directory.
+
+  That’s where this script will create a new git repository and convert MediaWiki revisions into Git commits
+
+          mkdir out
+
+1. Review `WebPlatform\Importer\Commands\RunCommand` class, adapt to your installation.
+
+  * **apiUrl** should point to your own MediaWiki installation you are exporting from
+  * If you need to superseed a user, look at the comment "Fix duplicates and merge them as only one" uncomment and adjust to your own project
+
+
+1. Run first pass
+
+  When you delete a document in MediaWiki, you can set a redirect. Instead of writing history of the page
+  at a location that will be deleted we’ll write it at the "redirected" location.
+
+  This command makes no external requests, it only reads `data/users.json` (from `make dumpBackup` earlier) and
+  the dumpBackup XML file in `data/dumps/main_full.xml`.
+
+          app/console mediawiki:run 1 --git
+
+  At the end of the first pass you should end up with an empty `out/` directory with all the deleted pages history in a new git repository.
+
+
+1. Run second pass
+
+  Run through all history, except deleted documents, and write git commit history.
+
+          app/console mediawiki:run 2 --git
+
+
+1. Run third pass
+
+  This is the most time consuming pass. It’ll make a request to retrieve the HTML output of the current
+  latest revision of every wiki page through MediaWiki’s internal Parser API, see [MediaWiki Parsing Wikitext][action-parser-docs].
+
+  At this pass you can *resume-at* and *retry* pages that didn’t work at a previous run.
+
+  While the two other pass commits every revision as a single commit, this one is intended to be ONE big commit containing
+  ALL the conversion result.
+
+  Instead of risking to lose terminal feedback you can pipe the output into a log file.
+
+
+  **First time 3rd pass**
+
+          app/console mediawiki:run 3 --git > run.log
+
+  If everything went well, you should see nothing in `errors/` folder. If that’s so; you are lucky!
+
+  Tail the progress in a separate terminal tab. Each run has an "index" specified, if you want to resume at a specific point
+  you can just use that index value in `--resume-at=n`.
+
+          tail -f run.log
+
+
+  **3rd pass had been interrupted**
+
+  This can happen if the machine running the process had been suspended, or lost network connectivity. You can
+  resume at any point by specifying the `--resume-at=n` index it been interrupted.
+
+          app/console mediawiki:run 3 --git --resume-at 2450 >> run.log
+
+
+  **3rd pass completed, but we had errors**
+
+  The most possible scenario.
+
+  Gather a coma separated list of erroneous pages and run only them.
+
+          // for example
+          app/console mediawiki:run 3 --git --retry=1881,1898,1900,1902,1966,1999 >> run.log
+
+### Result of import
+
+The following repository had been through this script and *successfully imported* [WebPlatform Docs content from MediaWiki][wpd-repo] into a git repository.
+
+
+  [mwc]: https://github.com/webplatform/mediawiki-conversion
+  [action-parser-docs]: https://www.mediawiki.org/wiki/API:Parsing_wikitext
+  [wpd-repo]: https://github.com/webplatform/docs

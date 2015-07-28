@@ -5,3 +5,4 @@ bin/
 src/WebPlatform/ContentConverter/
 out/
 *.sublime*
+errors/
