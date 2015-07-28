@@ -10,7 +10,6 @@ use WebPlatform\ContentConverter\Model\AbstractRevision;
 use WebPlatform\ContentConverter\Model\MediaWikiRevision;
 use WebPlatform\ContentConverter\Model\MarkdownRevision;
 use WebPlatform\ContentConverter\Converter\ConverterInterface;
-
 use Exception;
 
 /**
@@ -45,13 +44,12 @@ class MediaWikiToHtml implements ConverterInterface
 
     protected function makeRequest($title)
     {
-
         $opts = array(
-          'http'=>array(
-            'method'=>"GET",
-            'header'=>"Accept-language: en\r\n" .
-                      "Cookie: foo=bar\r\n"
-          )
+          'http' => array(
+            'method' => 'GET',
+            'header' => "Accept-language: en\r\n".
+                      "Cookie: foo=bar\r\n",
+          ),
         );
 
         $context = stream_context_create($opts);
@@ -93,7 +91,6 @@ class MediaWikiToHtml implements ConverterInterface
     public function apply(AbstractRevision $revision)
     {
         if ($revision instanceof MediaWikiRevision) {
-
             try {
                 $content = $this->getPageFromApi($revision->getTitle());
             } catch (Exception $e) {

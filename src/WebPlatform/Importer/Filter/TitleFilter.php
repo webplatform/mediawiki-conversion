@@ -51,7 +51,6 @@ use WebPlatform\ContentConverter\Filter\AbstractFilter;
  */
 class TitleFilter extends AbstractFilter
 {
-
     /**
      * Rewrite only ones that would end up creating two folders with different Casing !== casing and create
      * an issue when we write files on a filesystem due to case sensitivity.

@@ -12,18 +12,15 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Filesystem\Filesystem;
 use Prewk\XmlStringStreamer;
-
 use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
-
 use WebPlatform\Importer\Model\MediaWikiDocument;
 use WebPlatform\Importer\Filter\TitleFilter;
-
 use SimpleXMLElement;
 use Exception;
 
 /**
- * Read and create a summary from a MediaWiki dumpBackup XML file
+ * Read and create a summary from a MediaWiki dumpBackup XML file.
  *
  * @author Renoir Boulanger <hello@renoirboulanger.com>
  */
@@ -64,8 +61,8 @@ DESCR;
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $this->users = [];
-        $this->filesystem = new Filesystem;
-        $this->titleFilter = new TitleFilter;
+        $this->filesystem = new Filesystem();
+        $this->titleFilter = new TitleFilter();
 
         $displayIndex = $input->getOption('indexes');
         $displayAuthor = $input->getOption('display-author');
@@ -91,7 +88,7 @@ DESCR;
         $temporary_acceptable_duplicates = [];
         //$temporary_acceptable_duplicates[] = 'css/selectors/pseudo-classes/:lang'; // DONE
 
-        /** -------------------- Author --------------------
+        /* -------------------- Author --------------------
          *
          * Author array of MediaWikiContributor objects with $this->users[$uid],
          * where $uid is MediaWiki user_id.
@@ -103,16 +100,16 @@ DESCR;
         $users_loop = json_decode(file_get_contents($users_file), 1);
 
         foreach ($users_loop as &$u) {
-            $uid = (int) $u["user_id"];
+            $uid = (int) $u['user_id'];
             $this->users[$uid] = new MediaWikiContributor($u);
             unset($u); // Dont fill too much memory, if that helps.
         }
-        /** -------------------- /Author -------------------- **/
+        /* -------------------- /Author -------------------- **/
 
-        /** -------------------- XML source -------------------- **/
+        /* -------------------- XML source -------------------- **/
         $file = DATA_DIR.'/dumps/main_full.xml';
         $streamer = XmlStringStreamer::createStringWalkerParser($file);
-        /** -------------------- /XML source -------------------- **/
+        /* -------------------- /XML source -------------------- **/
 
         while ($node = $streamer->getNode()) {
             if ($maxHops > 0 && $maxHops === $counter) {
@@ -121,20 +118,19 @@ DESCR;
             }
             $pageNode = new SimpleXMLElement($node);
             if (isset($pageNode->title)) {
-
                 $wikiDocument = new MediaWikiDocument($pageNode);
                 $persistable = new GitCommitFileRevision($wikiDocument, 'out/content/', '.md');
 
                 $title = $wikiDocument->getTitle();
                 $normalized_location = $wikiDocument->getName();
-                $file_path  = $this->titleFilter->filter($persistable->getName());
+                $file_path = $this->titleFilter->filter($persistable->getName());
                 $redirect_to = $this->titleFilter->filter($wikiDocument->getRedirect()); // False if not a redirect, string if it is
 
                 $is_translation = $wikiDocument->isTranslation();
                 $language_code = $wikiDocument->getLanguageCode();
                 $language_name = $wikiDocument->getLanguageName();
 
-                $revs  = $wikiDocument->getRevisions()->count();
+                $revs = $wikiDocument->getRevisions()->count();
 
                 $output->writeln(sprintf('"%s":', $title));
                 if ($displayIndex === true) {
@@ -147,12 +143,11 @@ DESCR;
                     $output->writeln(sprintf('  - redirect_to: %s', $redirect_to));
                 } else {
                     $urlsWithContent[] = $title;
-                    foreach (explode("/", $normalized_location) as $urlDepth => $urlPart) {
+                    foreach (explode('/', $normalized_location) as $urlDepth => $urlPart) {
                         $urlPartKey = strtolower($urlPart);
                         $urlParts[$urlPartKey] = $urlPart;
                         $urlPartsAll[$urlPartKey][] = $urlPart;
                     }
-
                 }
 
                 if ($is_translation === true) {
@@ -166,7 +161,7 @@ DESCR;
                 $revLast = $wikiDocument->getLatest();
                 $revCounter = 0;
 
-                /** ----------- REVISION --------------- **/
+                /* ----------- REVISION --------------- **/
                 for ($revList->rewind(); $revList->valid(); $revList->next()) {
                     if ($revMaxHops > 0 && $revMaxHops === $revCounter) {
                         $output->writeln(sprintf('    - stop: Reached maximum %d revisions', $revMaxHops).PHP_EOL.PHP_EOL);
@@ -176,10 +171,10 @@ DESCR;
                     $wikiRevision = $revList->current();
                     $revision_id = $wikiRevision->getId();
 
-                    /** -------------------- Author -------------------- **/
+                    /* -------------------- Author -------------------- **/
                     // An edge case where MediaWiki may give author as user_id 0, even though we dont have it
                     // so we’ll give the first user instead.
-                    $contributor_id = ($wikiRevision->getContributorId() === 0)?1:$wikiRevision->getContributorId();
+                    $contributor_id = ($wikiRevision->getContributorId() === 0) ? 1 : $wikiRevision->getContributorId();
                     if (isset($this->users[$contributor_id])) {
                         $contributor = clone $this->users[$contributor_id]; // We want a copy, because its specific to here only anyway.
                         $wikiRevision->setContributor($contributor, false);
@@ -188,7 +183,7 @@ DESCR;
                         $contributor = clone $this->users[1]; // We want a copy, because its specific to here only anyway.
                         $wikiRevision->setContributor($contributor, false);
                     }
-                    /** -------------------- /Author -------------------- **/
+                    /* -------------------- /Author -------------------- **/
 
                     $output->writeln(sprintf('    - id: %d', $revision_id));
                     if ($displayIndex === true) {
@@ -208,7 +203,6 @@ DESCR;
                             continue;
                         }
                         $output->writeln(sprintf('      %s: %s', $argKey, $argVal));
-
                     }
 
                     if ($revLast->getId() === $wikiRevision->getId() && $wikiDocument->hasRedirect()) {
@@ -218,7 +212,7 @@ DESCR;
                     ++$revCounter;
                 }
 
-                /** ----------- REVISION --------------- */
+                /* ----------- REVISION --------------- */
 
                 $rev_count[] = $revs;
 
@@ -275,18 +269,17 @@ DESCR;
                 } else {
                     // Hopefully we should never encounter this.
                     $previous = $pages[$normalized_location];
-                    $duplicatePagesExceptionText =  "We have duplicate entry for %s it "
-                                                   ."would be stored in %s which would override content of %s";
+                    $duplicatePagesExceptionText = 'We have duplicate entry for %s it '
+                                                   .'would be stored in %s which would override content of %s';
                     throw new Exception(sprintf($duplicatePagesExceptionText, $title, $file_path, $previous));
                 }
 
                 $output->writeln(PHP_EOL.PHP_EOL);
                 ++$counter;
             }
-
         }
 
-        /**
+        /*
          * Work some numbers on number of edits
          *
          * - Average
@@ -294,18 +287,18 @@ DESCR;
          */
         $total_edits = 0;
         sort($rev_count);
-        $edit_average = array_sum($rev_count)/$counter;
+        $edit_average = array_sum($rev_count) / $counter;
 
         // Calculate median
-        $value_in_middle = floor(($counter-1)/2);
+        $value_in_middle = floor(($counter - 1) / 2);
         if ($counter % 2) {
             // odd number, middle is the median
             $edit_median = $rev_count[$value_in_middle];
         } else {
             // even number, calculate avg of 2 medians
             $low = $rev_count[$value_in_middle];
-            $high = $rev_count[$value_in_middle+1];
-            $edit_median = (($low+$high)/2);
+            $high = $rev_count[$value_in_middle + 1];
+            $edit_median = (($low + $high) / 2);
         }
 
         $numbers = array('Numbers:');
@@ -319,18 +312,18 @@ DESCR;
         $numbers[] = sprintf('  - "edits median": %d', $edit_median);
         $this->filesystem->dumpFile('reports/numbers.txt', implode($numbers, PHP_EOL));
 
-        $this->filesystem->dumpFile("reports/hundred_revs.txt", implode($moreThanHundredRevs, PHP_EOL));
-        $this->filesystem->dumpFile("reports/problematic_authors.txt", implode($problematicAuthors, PHP_EOL));
+        $this->filesystem->dumpFile('reports/hundred_revs.txt', implode($moreThanHundredRevs, PHP_EOL));
+        $this->filesystem->dumpFile('reports/problematic_authors.txt', implode($problematicAuthors, PHP_EOL));
 
         natcasesort($translations);
-        $this->filesystem->dumpFile("reports/translations.txt", implode(PHP_EOL, $translations));
+        $this->filesystem->dumpFile('reports/translations.txt', implode(PHP_EOL, $translations));
         natcasesort($directlyOnRoot);
-        $this->filesystem->dumpFile("reports/directly_on_root.txt", implode(PHP_EOL, $directlyOnRoot));
+        $this->filesystem->dumpFile('reports/directly_on_root.txt', implode(PHP_EOL, $directlyOnRoot));
         natcasesort($urlsWithContent);
-        $this->filesystem->dumpFile("reports/url_all.txt", implode(PHP_EOL, $urlsWithContent));
+        $this->filesystem->dumpFile('reports/url_all.txt', implode(PHP_EOL, $urlsWithContent));
 
         natcasesort($urlParts);
-        $this->filesystem->dumpFile("reports/url_parts.txt", implode(PHP_EOL, $urlParts));
+        $this->filesystem->dumpFile('reports/url_parts.txt', implode(PHP_EOL, $urlParts));
 
         // Creating list for https://github.com/webplatform/mediawiki-conversion/issues/2
         ksort($urlPartsAll);
@@ -341,13 +334,13 @@ DESCR;
                 $urlPartsAllOut[] = sprintf(' - %s', implode(', ', $urlPartsAllEntryUnique));
             }
         }
-        $this->filesystem->dumpFile("reports/url_parts_variants.txt", implode(PHP_EOL, $urlPartsAllOut));
+        $this->filesystem->dumpFile('reports/url_parts_variants.txt', implode(PHP_EOL, $urlPartsAllOut));
 
         $sanity_redirects_out = array('URLs to return new Location (from => to):');
         foreach ($sanity_redirs as $title => $sanitized) {
             $sanity_redirects_out[] = sprintf(' - "%s": "%s"', $title, $sanitized);
         }
-        $this->filesystem->dumpFile("reports/sanity_redirects.txt", implode(PHP_EOL, $sanity_redirects_out));
+        $this->filesystem->dumpFile('reports/sanity_redirects.txt', implode(PHP_EOL, $sanity_redirects_out));
 
         // Last minute redirects?
         $redirects['after'] = 'css/selectors/pseudo-elements/after';
@@ -356,6 +349,6 @@ DESCR;
         foreach ($redirects as $url => $redirect_to) {
             $redirects_out[] = sprintf(' - "%s": "%s"', $url, $redirect_to);
         }
-        $this->filesystem->dumpFile("reports/redirects.txt", implode(PHP_EOL, $redirects_out));
+        $this->filesystem->dumpFile('reports/redirects.txt', implode(PHP_EOL, $redirects_out));
     }
 }
