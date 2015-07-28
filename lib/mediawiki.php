@@ -15,7 +15,5 @@ date_default_timezone_set('America/Montreal');
 
 $_SERVER['REMOTE_ADDR']='127.0.0.1';
 
-//define('DATA_DIR', '/vagrant/mediawiki-conversion/data');
-define('DATA_DIR', '/Users/renoirb/workspaces/webplatform/service-wiki/mediawiki-conversion/data');
-//define('DATA_DIR', '/vagrant/mediawiki-conversion/out');
-define('GIT_OUTPUT_DIR', '/Users/renoirb/workspaces/webplatform/service-wiki/mediawiki-conversion/out');
+define('DATA_DIR', sprintf('%s/data', realpath(__DIR__ . '/..')));
+define('GIT_OUTPUT_DIR', sprintf('%s/out', realpath(__DIR__ . '/..')));

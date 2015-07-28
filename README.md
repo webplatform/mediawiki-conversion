@@ -90,7 +90,7 @@ to get the parser to give us the generated HTML at the 3rd pass.
   This command makes no external requests, it only reads `data/users.json` (from `make dumpBackup` earlier) and
   the dumpBackup XML file in `data/dumps/main_full.xml`.
 
-          app/console mediawiki:run 1 --git
+          app/console mediawiki:run 1
 
   At the end of the first pass you should end up with an empty `out/` directory with all the deleted pages history in a new git repository.
 
@@ -99,7 +99,9 @@ to get the parser to give us the generated HTML at the 3rd pass.
 
   Run through all history, except deleted documents, and write git commit history.
 
-          app/console mediawiki:run 2 --git
+  **This command can take more than one hour to complete**. It all depends of the number of wiki pages and revisions.
+
+          app/console mediawiki:run 2
 
 
 1. Run third pass
@@ -117,7 +119,7 @@ to get the parser to give us the generated HTML at the 3rd pass.
 
   **First time 3rd pass**
 
-          app/console mediawiki:run 3 --git > run.log
+          app/console mediawiki:run 3 > run.log
 
   If everything went well, you should see nothing in `errors/` folder. If that’s so; you are lucky!
 
@@ -132,7 +134,7 @@ to get the parser to give us the generated HTML at the 3rd pass.
   This can happen if the machine running the process had been suspended, or lost network connectivity. You can
   resume at any point by specifying the `--resume-at=n` index it been interrupted.
 
-          app/console mediawiki:run 3 --git --resume-at 2450 >> run.log
+          app/console mediawiki:run 3 --resume-at 2450 >> run.log
 
 
   **3rd pass completed, but we had errors**
@@ -142,7 +144,7 @@ to get the parser to give us the generated HTML at the 3rd pass.
   Gather a coma separated list of erroneous pages and run only them.
 
           // for example
-          app/console mediawiki:run 3 --git --retry=1881,1898,1900,1902,1966,1999 >> run.log
+          app/console mediawiki:run 3 --retry=1881,1898,1900,1902,1966,1999 >> run.log
 
 ### Result of import
 

@@ -1,5 +1,4 @@
 SHELL := bash
-default: import
 
 dump:
 	@if [[ -f ../mediawiki/maintenance/dumpBackup.php ]]; then\
@@ -12,5 +11,3 @@ dump:
 		php ../mediawiki/maintenance/dumpBackup.php --current --filter=namespace:3020 > data/dumps/meta.xml;\
 		app/export_users > data/users.json;\
 	fi
-
-

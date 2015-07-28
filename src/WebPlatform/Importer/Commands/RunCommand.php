@@ -68,6 +68,8 @@ class RunCommand extends Command
                     Write history on top of deleted content. That way we won’t get conflicts between
                     content that got deleted from still current content.
 
+                    Beware; This command can take MORE than an HOUR to complete.
+
 
                 3.) Convert content
 
@@ -85,7 +87,6 @@ DESCR;
                     new InputOption('retry', '', InputOption::VALUE_OPTIONAL, 'List of indexes you want to query again', null),
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per page ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of pages', 0),
-                    new InputOption('git', '', InputOption::VALUE_NONE, 'Do run git import (write to filesystem is implicit), defaults to false'),
                 ]
             );
     }
@@ -98,7 +99,6 @@ DESCR;
 
         $passNbr = (int) $input->getArgument('pass');
 
-        $useGit = $input->getOption('git');
         $retries = explode(',', $input->getOption('retry'));
         $resumeAt = (int) $input->getOption('resume-at');
 
@@ -115,12 +115,10 @@ DESCR;
             throw new DomainException('Retry option is only supported at 3rd pass');
         }
 
-        if ($useGit === true) {
-            $repoInitialized = (realpath(GIT_OUTPUT_DIR.'/.git') === false)?false:true;
-            $this->git = new GitRepository(realpath(GIT_OUTPUT_DIR));
-            if ($repoInitialized === false) {
-                $this->git->init()->execute();
-            }
+        $repoInitialized = (realpath(GIT_OUTPUT_DIR.'/.git') === false)?false:true;
+        $this->git = new GitRepository(realpath(GIT_OUTPUT_DIR));
+        if ($repoInitialized === false) {
+            $this->git->init()->execute();
         }
 
         if ($passNbr === 3) {
@@ -381,77 +379,75 @@ DESCR;
                         $removeFile = true;
                     }
 
-                    if ($useGit === true) {
-                        $persistable->setRevision($revision);
+                    $persistable->setRevision($revision);
 
-                        $this->filesystem->dumpFile($file_path, (string) $persistable);
+                    $this->filesystem->dumpFile($file_path, (string) $persistable);
+                    try {
+                        $this->git
+                            ->add()
+                            // Make sure out/ matches what we set at GitCommitFileRevision constructor.
+                            ->execute(preg_replace('/^out\//', '', $file_path));
+                    } catch (GitException $e) {
+                        $message = sprintf('Could not add file "%s" with title "%s" for revision %d', $file_path, $title, $revision_id);
+                        throw new Exception($message, null, $e);
+                    }
+
+                    if ($passNbr < 3) {
+
+                        // We won’t expose all WebPlatform user emails to the public. Instead,
+                        // we’ll create a bogus email alias based on their MediaWiki username.
+                        $real_name = $wikiRevision->getContributor()->getRealName();
+                        $username = $wikiRevision->getContributor()->getName();
+                        $email = sprintf('%s@docs.webplatform.org', $username);
+                        $author_overload = sprintf('%s <%s>', $real_name, $email);
+
                         try {
                             $this->git
-                                ->add()
-                                // Make sure out/ matches what we set at GitCommitFileRevision constructor.
-                                ->execute(preg_replace('/^out\//', '', $file_path));
+                                ->commit()
+                                // In order to enforce git to use the same commiter data
+                                // than the author’s we had to overload CommitCommandBuilder
+                                // class.
+                                //
+                                // In WebPlatform\Importer\GitPhp\CommitCommandBuilder, we
+                                // overload [date, author] methods so we can inject the same
+                                // matching GIT_COMMITTER_* values at commit time.
+                                ->message($persistArgs['message'])
+                                ->author('"'.$author_overload.'"')
+                                ->date('"'.$persistArgs['date'].'"')
+                                ->allowEmpty()
+                                ->execute();
+
                         } catch (GitException $e) {
-                            $message = sprintf('Could not add file %s for revision %d', $file_path, $revision_id);
+                            var_dump($this->git);
+                            $message = sprintf('Could not commit for revision %d', $revision_id);
                             throw new Exception($message, null, $e);
                         }
 
-                        if ($passNbr < 3) {
-
-                            // We won’t expose all WebPlatform user emails to the public. Instead,
-                            // we’ll create a bogus email alias based on their MediaWiki username.
-                            $real_name = $wikiRevision->getContributor()->getRealName();
-                            $username = $wikiRevision->getContributor()->getName();
-                            $email = sprintf('%s@docs.webplatform.org', $username);
-                            $author_overload = sprintf('%s <%s>', $real_name, $email);
-
+                        if ($removeFile === true) {
                             try {
                                 $this->git
-                                    ->commit()
-                                    // In order to enforce git to use the same commiter data
-                                    // than the author’s we had to overload CommitCommandBuilder
-                                    // class.
-                                    //
-                                    // In WebPlatform\Importer\GitPhp\CommitCommandBuilder, we
-                                    // overload [date, author] methods so we can inject the same
-                                    // matching GIT_COMMITTER_* values at commit time.
-                                    ->message($persistArgs['message'])
-                                    ->author('"'.$author_overload.'"')
-                                    ->date('"'.$persistArgs['date'].'"')
-                                    ->allowEmpty()
-                                    ->execute();
-
+                                    ->rm()
+                                    // Make sure out/ matches what we set at GitCommitFileRevision constructor.
+                                    ->execute(preg_replace('/^out\//', '', $file_path));
                             } catch (GitException $e) {
-                                var_dump($this->git);
-                                $message = sprintf('Could not commit for revision %d', $revision_id);
+                                $message = sprintf('Could remove %s at revision %d', $file_path, $revision_id);
                                 throw new Exception($message, null, $e);
                             }
 
-                            if ($removeFile === true) {
-                                try {
-                                    $this->git
-                                        ->rm()
-                                        // Make sure out/ matches what we set at GitCommitFileRevision constructor.
-                                        ->execute(preg_replace('/^out\//', '', $file_path));
-                                } catch (GitException $e) {
-                                    $message = sprintf('Could remove %s at revision %d', $file_path, $revision_id);
-                                    throw new Exception($message, null, $e);
-                                }
+                            $this->git
+                                ->commit()
+                                ->message('Remove file; '.$persistArgs['message'])
+                                // ... no need to worry here. We overloaded author, date
+                                // remember?
+                                ->author('"'.$author_overload.'"')
+                                ->date('"'.$persistArgs['date'].'"')
+                                ->allowEmpty()
+                                ->execute();
 
-                                $this->git
-                                    ->commit()
-                                    ->message('Remove file; '.$persistArgs['message'])
-                                    // ... no need to worry here. We overloaded author, date
-                                    // remember?
-                                    ->author('"'.$author_overload.'"')
-                                    ->date('"'.$persistArgs['date'].'"')
-                                    ->allowEmpty()
-                                    ->execute();
+                            $this->filesystem->remove($file_path);
 
-                                $this->filesystem->remove($file_path);
-
-                            }
-                        } /* End of $passNubr === 3 */
-                    } /* End of $useGit === true */
+                        }
+                    } /* End of $passNubr === 3 */
 
                     ++$revCounter;
                 }
