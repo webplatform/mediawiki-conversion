@@ -119,6 +119,9 @@ to get the parser to give us the generated HTML at the 3rd pass.
   * **apiUrl** should point to your own MediaWiki installation you are exporting from
   * If you need to superseed a user, look at the comment "Fix duplicates and merge them as only one" uncomment and adjust to your own project
 
+1. **Review [TitleFilter][title-filter] and adapt the rules according to your content**
+
+  Refer to [Reports](#Reports), at the [URL parts variants](#URL parts variants) report where you may find possible file name conflicts.
 
 1. **Run first pass**
 
