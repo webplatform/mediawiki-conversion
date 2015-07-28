@@ -33,7 +33,9 @@
 
 1. Run `dumpBackup` make target; This should export content and create a cache of all users
 
-    make dumpBackup
+  ```
+  make dumpBackup
+  ```
 
 1. **NOTE** Once here, we do not need to run the remaining from the same machine as the one we run MediaWiki
 
@@ -53,13 +55,18 @@ to get the parser to give us the generated HTML at the 3rd pass.
   This command makes no external requests, it only reads `data/users.json` (from `make dumpBackup` earlier) and
   the dumpBackup XML file in `data/dumps/main_full.xml`.
 
-          mkdir reports
-          app/console mediawiki:summary > reports/summary.yml
+  ```
+  mkdir reports
+  app/console mediawiki:summary > reports/summary.yml
+  ```
 
   You can review WebPlatform Docs content summary that was in MediaWiki until 2015-07-28 in `reports/` directory of
   [webplatform/mediawiki-conversion][mwc] repository.
 
-  More in [#Reports]
+  If you want more details you can use the `--display-author` switch.
+  The option had been added so we can commit the file without leaking our users email addresses.
+
+  More in [Reports](#Reports) below.
 
 
 1. Create `errors/` directory.
@@ -67,14 +74,18 @@ to get the parser to give us the generated HTML at the 3rd pass.
   That’s where the script will create file with the index counter number where we couldn’t get MediaWiki API render action
   to give us HTML output at 3rd pass.
 
-          mkdir errors
+  ```
+  mkdir errors
+  ```
 
 
 1. Create `out/` directory.
 
   That’s where this script will create a new git repository and convert MediaWiki revisions into Git commits
 
-          mkdir out
+  ```
+  mkdir out
+  ```
 
 1. Review `WebPlatform\Importer\Commands\RunCommand` class, adapt to your installation.
 
@@ -90,7 +101,9 @@ to get the parser to give us the generated HTML at the 3rd pass.
   This command makes no external requests, it only reads `data/users.json` (from `make dumpBackup` earlier) and
   the dumpBackup XML file in `data/dumps/main_full.xml`.
 
-          app/console mediawiki:run 1
+  ```
+  app/console mediawiki:run 1
+  ```
 
   At the end of the first pass you should end up with an empty `out/` directory with all the deleted pages history in a new git repository.
 
@@ -101,7 +114,9 @@ to get the parser to give us the generated HTML at the 3rd pass.
 
   **This command can take more than one hour to complete**. It all depends of the number of wiki pages and revisions.
 
-          app/console mediawiki:run 2
+  ```
+  app/console mediawiki:run 2
+  ```
 
 
 1. Run third pass
@@ -119,14 +134,18 @@ to get the parser to give us the generated HTML at the 3rd pass.
 
   **First time 3rd pass**
 
-          app/console mediawiki:run 3 > run.log
+  ```
+  app/console mediawiki:run 3 > run.log
+  ```
 
   If everything went well, you should see nothing in `errors/` folder. If that’s so; you are lucky!
 
   Tail the progress in a separate terminal tab. Each run has an "index" specified, if you want to resume at a specific point
   you can just use that index value in `--resume-at=n`.
 
-          tail -f run.log
+  ```
+  tail -f run.log
+  ```
 
 
   **3rd pass had been interrupted**
@@ -134,7 +153,9 @@ to get the parser to give us the generated HTML at the 3rd pass.
   This can happen if the machine running the process had been suspended, or lost network connectivity. You can
   resume at any point by specifying the `--resume-at=n` index it been interrupted.
 
-          app/console mediawiki:run 3 --resume-at 2450 >> run.log
+  ```
+  app/console mediawiki:run 3 --resume-at 2450 >> run.log
+  ```
 
 
   **3rd pass completed, but we had errors**
@@ -143,10 +164,109 @@ to get the parser to give us the generated HTML at the 3rd pass.
 
   Gather a coma separated list of erroneous pages and run only them.
 
-          // for example
-          app/console mediawiki:run 3 --retry=1881,1898,1900,1902,1966,1999 >> run.log
+  ```
+  // for example
+  app/console mediawiki:run 3 --retry=1881,1898,1900,1902,1966,1999 >> run.log
+  ```
 
-### Result of import
+## Reports
+
+This repository has reports generated during [WebPlatform Docs content from MediaWiki][wpd-repo] migration commited in the `reports/` folder.
+You can overwrite or delete them to leave trace of your own migration.
+They were commited in this repository to illustrate how this workbench got from the migration.
+
+### directly on root
+
+This report shows wiki documents that are directly on root, it helps to know what are the pages at top level before running the import.
+
+### hundred revs
+
+This shows the wiki pages that has more than 100 edits.
+
+### numbers
+
+A summary of the content:
+
+* Iterations: Number of wiki pages
+* Content pages: Pages that are still with content (i.e. not deleted)
+* redirects: Pages that redirects to other pages (i.e. when deleted, author asked to redirect)
+
+### problematic authors
+
+This file should ideally be empty
+
+### redirects
+
+Pages that had been deleted and author asked to redirect.
+
+This will be useful for a webserver 301 redirect map
+
+### Sanity redirects
+
+All pages that had invalid filesystem characters (e.g. `:`,`(`,`)`,`@`) in their URL (e.g. `css/atrules/@viewport`) to make sure we don’t lose the original URL, but serve the appropriate file.
+
+### Summary
+
+Shows all pages, the number of revisions, the date and message of the commit.
+
+This report is generated through `app/console mediawiki:summary` and we redirect output to this file.
+
+### url all
+
+All URLs sorted (as much as PHP can sort URLs).
+
+### url parts
+
+A list of all URL components, only unique entries.
+
+If you have collisions due to casing, you should review in **url parts variants**.
+
+### url parts variants
+
+A list of all URL components, showing variants in casing that will create file name conflicts during coversion.
+
+Not all of the entries in "reports/url_parts_variants.txt" are problematic, you’ll have to review all your URLs and adapt your own copy of `TitleFilter`, see [WebPlatform/Importer/Filter/TitleFilter][title-filter].
+
+#### Possible file name conflicts due to casing inconsistency
+
+Conflicts can be caused to folders being created with different casing.
+
+For example, consider the following and notice how we may get capital letters and others wouldn’t:
+
+* concepts/Internet and Web/The History of the Web
+* concepts/Internet and Web/the history of the web/es
+* concepts/Internet and Web/the history of the web/ja
+* tutorials/canvas/canvas tutorial
+* tutorials/canvas/Canvas tutorial/Applying styles and colors
+* tutorials/canvas/Canvas tutorial/Basic animations
+
+This conversion workbench is about creating files and folders, the list of
+titles above would therefore become;
+
+```
+concepts/
+  - Internet_and_Web/
+    - The_History_of_the_Web/
+      - index.html
+    - the_history_of_the_web/
+      - es.html
+      - ja.html
+tutorials/
+  - canvas/
+    - canvas_tutorial/
+      - index.html
+    - Canvas_tutorial/
+      - Applying_styles_and_colors/
+        - index.html
+```
+
+Notice that we would have at the same directory level with two folders
+with almost the same name but with different casing patterns.
+
+This is what [TitleFilter][title-filter] is for.
+
+
+## Result of import
 
 The following repository had been through this script and *successfully imported* [WebPlatform Docs content from MediaWiki][wpd-repo] into a git repository.
 
@@ -154,3 +274,5 @@ The following repository had been through this script and *successfully imported
   [mwc]: https://github.com/webplatform/mediawiki-conversion
   [action-parser-docs]: https://www.mediawiki.org/wiki/API:Parsing_wikitext
   [wpd-repo]: https://github.com/webplatform/docs
+  [title-filter]: src/WebPlatform/Importer/Filter/TitleFilter.php
+
