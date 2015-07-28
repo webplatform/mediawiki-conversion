@@ -15,5 +15,6 @@ date_default_timezone_set('America/Montreal');
 
 $_SERVER['REMOTE_ADDR']='127.0.0.1';
 
-define('DATA_DIR', sprintf('%s/data', realpath(__DIR__ . '/..')));
-define('GIT_OUTPUT_DIR', sprintf('%s/out', realpath(__DIR__ . '/..')));
+$wd = realpath(__DIR__ . '/..');
+define('DATA_DIR', $wd.'/data');
+define('GIT_OUTPUT_DIR', $wd.'/out');

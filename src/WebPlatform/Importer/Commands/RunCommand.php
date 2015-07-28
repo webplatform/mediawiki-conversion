@@ -135,9 +135,10 @@ DESCR;
             $this->converter = new MediaWikiToHtml;
             $this->converter->setApiUrl($apiUrl);
 
-            sort($retries);
             if (count($retries) < 1) {
                 unset($retries);
+            } else {
+                sort($retries);
             }
         } else {
             unset($retries);
@@ -264,14 +265,17 @@ DESCR;
                 if ($wikiDocument->hasRedirect() === false && $passNbr === 1) {
                     // Skip all NON redirects for pass 1
                     $output->writeln(sprintf('  - skip: Document %s WITHOUT redirect, at pass 1 (handling redirects)', $title).PHP_EOL.PHP_EOL);
+                    ++$counter;
                     continue;
                 } elseif ($wikiDocument->hasRedirect() && $passNbr === 2) {
                     // Skip all redirects for pass 2
                     $output->writeln(sprintf('  - skip: Document %s WITH redirect, at pass 2 (handling non redirects)', $title).PHP_EOL.PHP_EOL);
+                    ++$counter;
                     continue;
                 } elseif ($wikiDocument->hasRedirect() && $passNbr === 3) {
                     // Skip all redirects for pass 2
                     $output->writeln(sprintf('  - skip: Document %s WITH redirect, at pass 3', $title).PHP_EOL.PHP_EOL);
+                    ++$counter;
                     continue;
                 }
 
