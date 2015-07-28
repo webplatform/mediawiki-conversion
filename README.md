@@ -30,10 +30,10 @@ In fact if you have an XML file with similar format as below, you could use this
 ## Features
 
 * Convert MediaWiki wiki page history into Git repository on a filesystem
-* Dump every page into text files, organized by their url (e.g. `css/properties`, `css/properties/index.txt`), without any modifications
+* Dump every page into text files, organized by their url (e.g. `css/properties`, `css/properties/index.md`), without any modifications
 * Read data from MediaWiki’s recommended MediaWiki way of backups (i.e. `maintenance/dumpBackup.php`)
 * Get "reports" about the content: deleted pages, redirects, translations, number of revisions per page
-* Harmonize titles and converts into valid file name (e.g. `:`,`(`,`)`,`@`)
+* Harmonize titles and converts into valid file name (e.g. `:`,`(`,`)`,`@`) in their URL (e.g. `css/atrules/@viewport`, redirects to `css/atrules/viewport` and serve from HTML file that would be generated from `css/atrules/viewport/index.md`)
 * Create list of rewrite rules to keep original URLs refering back to harmonized file name
 * Write history of deleted pages "underneath" history of current content
 * Ability to run script from backed up XML file (i.e. once we have XML files, no need to run script on same server)
@@ -93,7 +93,7 @@ to get the parser to give us the generated HTML at the 3rd pass.
   If you want more details you can use the `--display-author` switch.
   The option had been added so we can commit the file without leaking our users email addresses.
 
-  More in [Reports](#Reports) below.
+  More in [Reports](#reports) below.
 
 
 1. **Create `errors/` directory**
@@ -121,7 +121,7 @@ to get the parser to give us the generated HTML at the 3rd pass.
 
 1. **Review [TitleFilter][title-filter] and adapt the rules according to your content**
 
-  Refer to [Reports](#Reports), at the [URL parts variants](#URL parts variants) report where you may find possible file name conflicts.
+  Refer to [Reports](#Reports), at the [URL parts variants](#url-parts-variants) report where you may find possible file name conflicts.
 
 1. **Run first pass**
 
@@ -255,7 +255,7 @@ If you have collisions due to casing, you should review in **url parts variants*
 
 A list of all URL components, showing variants in casing that will create file name conflicts during coversion.
 
-Not all of the entries in "reports/url_parts_variants.txt" are problematic, you’ll have to review all your URLs and adapt your own copy of `TitleFilter`, see [WebPlatform/Importer/Filter/TitleFilter][title-filter].
+Not all of the entries in "reports/url_parts_variants.md" are problematic, you’ll have to review all your URLs and adapt your own copy of `TitleFilter`, see [WebPlatform/Importer/Filter/TitleFilter][title-filter].
 
 #### Possible file name conflicts due to casing inconsistency
 
