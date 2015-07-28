@@ -8,7 +8,8 @@
         "prewk/xml-string-streamer": "^0.7.1",
         "symfony/console": "~2.7",
         "symfony/filesystem": "~2.7",
-        "bit3/git-php": "~1.0"
+        "bit3/git-php": "~1.0",
+        "webplatform/content-converter": "1.0"
     },
     "require-dev": {
         "doctrine/annotations": "~1.2",
