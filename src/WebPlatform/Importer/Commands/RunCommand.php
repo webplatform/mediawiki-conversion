@@ -132,10 +132,9 @@ DESCR;
             $this->converter = new MediaWikiToHtml();
             $this->converter->setApiUrl($apiUrl);
 
-            if (count($retries) < 1) {
+            sort($retries);
+            if (count($retries) === 1 && $retries[0] === '') {
                 unset($retries);
-            } else {
-                sort($retries);
             }
         } else {
             unset($retries);
