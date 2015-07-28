@@ -1,12 +1,39 @@
 # Export MediaWiki into flat files
 
+Export content stored in an XML file and convert into a git repository.
+
+In fact if you have an XML file with similar format as below, you could use this workbench.
+
+```
+<foo>
+  <page>
+    <title>tutorials/Web Education Intro</title>
+    <ns>0</ns>
+    <id>1</id>
+    <revision>
+      <id>39463</id>
+      <timestamp>2013-10-24T20:33:53Z</timestamp>
+      <contributor>
+        <username>Jdoe</username>
+        <id>11</id>
+      </contributor>
+      <comment>Some optionnal edit comment</comment>
+      <text xml:space="preserve">Some '''text''' to import</text>
+    </revision>
+    <!-- more revision goes here -->
+  </page>
+  <!-- more page nodes goes here -->
+</foo>
+```
+
+
 ## Features
 
-* Convert MediaWiki wiki page history into Git repository
+* Convert MediaWiki wiki page history into Git repository on a filesystem
 * Dump every page into text files, organized by their url (e.g. `css/properties`, `css/properties/index.txt`), without any modifications
 * Read data from MediaWiki’s recommended MediaWiki way of backups (i.e. `maintenance/dumpBackup.php`)
 * Get "reports" about the content: deleted pages, redirects, translations, number of revisions per page
-* Harmonize titles and converts into valid file name (e.g. replace :,(,))
+* Harmonize titles and converts into valid file name (e.g. `:`,`(`,`)`,`@`)
 * Create list of rewrite rules to keep original URLs refering back to harmonized file name
 * Write history of deleted pages "underneath" history of current content
 * Ability to run script from backed up XML file (i.e. once we have XML files, no need to run script on same server)
@@ -14,7 +41,7 @@
 * Ability to detect if a page is a translation, create a file in the same folder with language name
 
 
-## Steps
+## Use
 
 
 ### Gather MediaWiki backup and user data
@@ -47,7 +74,7 @@ MediaWiki isn’t required locally.
 Make sure that you have a copy of your data available in a MediaWiki installation running with data, we´ll use the API
 to get the parser to give us the generated HTML at the 3rd pass.
 
-1. Get a "feel" of your data
+1. **Get a feel of your data**
 
   Run this command and you’ll know which pages are marked as deleted in history, the redirects, how the files will be called
   and so on. This gives out a very verbosic output, you may want to send the output to a file.
@@ -69,7 +96,7 @@ to get the parser to give us the generated HTML at the 3rd pass.
   More in [Reports](#Reports) below.
 
 
-1. Create `errors/` directory.
+1. **Create `errors/` directory**
 
   That’s where the script will create file with the index counter number where we couldn’t get MediaWiki API render action
   to give us HTML output at 3rd pass.
@@ -79,7 +106,7 @@ to get the parser to give us the generated HTML at the 3rd pass.
   ```
 
 
-1. Create `out/` directory.
+1. **Create `out/` directory**
 
   That’s where this script will create a new git repository and convert MediaWiki revisions into Git commits
 
@@ -87,13 +114,13 @@ to get the parser to give us the generated HTML at the 3rd pass.
   mkdir out
   ```
 
-1. Review `WebPlatform\Importer\Commands\RunCommand` class, adapt to your installation.
+1. **Review `WebPlatform\Importer\Commands\RunCommand` class, adapt to your installation**
 
   * **apiUrl** should point to your own MediaWiki installation you are exporting from
   * If you need to superseed a user, look at the comment "Fix duplicates and merge them as only one" uncomment and adjust to your own project
 
 
-1. Run first pass
+1. **Run first pass**
 
   When you delete a document in MediaWiki, you can set a redirect. Instead of writing history of the page
   at a location that will be deleted we’ll write it at the "redirected" location.
@@ -108,7 +135,7 @@ to get the parser to give us the generated HTML at the 3rd pass.
   At the end of the first pass you should end up with an empty `out/` directory with all the deleted pages history in a new git repository.
 
 
-1. Run second pass
+1. **Run second pass**
 
   Run through all history, except deleted documents, and write git commit history.
 
@@ -119,7 +146,7 @@ to get the parser to give us the generated HTML at the 3rd pass.
   ```
 
 
-1. Run third pass
+1. **Run third pass**
 
   This is the most time consuming pass. It’ll make a request to retrieve the HTML output of the current
   latest revision of every wiki page through MediaWiki’s internal Parser API, see [MediaWiki Parsing Wikitext][action-parser-docs].
@@ -175,15 +202,15 @@ This repository has reports generated during [WebPlatform Docs content from Medi
 You can overwrite or delete them to leave trace of your own migration.
 They were commited in this repository to illustrate how this workbench got from the migration.
 
-### directly on root
+### Directly on root
 
 This report shows wiki documents that are directly on root, it helps to know what are the pages at top level before running the import.
 
-### hundred revs
+### Hundred Revs(isions)
 
 This shows the wiki pages that has more than 100 edits.
 
-### numbers
+### Numbers
 
 A summary of the content:
 
@@ -191,11 +218,11 @@ A summary of the content:
 * Content pages: Pages that are still with content (i.e. not deleted)
 * redirects: Pages that redirects to other pages (i.e. when deleted, author asked to redirect)
 
-### problematic authors
+### Problematic Authors
 
 This file should ideally be empty
 
-### redirects
+### Redirects
 
 Pages that had been deleted and author asked to redirect.
 
@@ -211,17 +238,17 @@ Shows all pages, the number of revisions, the date and message of the commit.
 
 This report is generated through `app/console mediawiki:summary` and we redirect output to this file.
 
-### url all
+### URL all
 
 All URLs sorted (as much as PHP can sort URLs).
 
-### url parts
+### URL parts
 
 A list of all URL components, only unique entries.
 
 If you have collisions due to casing, you should review in **url parts variants**.
 
-### url parts variants
+### URL parts variants
 
 A list of all URL components, showing variants in casing that will create file name conflicts during coversion.
 
