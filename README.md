@@ -437,7 +437,7 @@ This is what *[TitleFilter][title-filter] class* is for.
 Two files are required to run the workbench;
 
 * ***data/dumps/main_full.xml*** with all the pages and revisions as described in [XML Schema](#xml-schema)
-* ***data/users.json*** with matching values from *contributor* XML node from *XML Schema*, as described in [Users.json Schema](#users-json-schema).
+* ***data/users.json*** with matching values from *contributor* XML node from *XML Schema*, as described in [Users.json Schema](#usersjson-schema).
 
 #### XML Schema
 
@@ -447,7 +447,7 @@ In other words, if you can get an XML file with the same schema you can also use
 
 Here are the essential pieces that this script expects along with notes about where they matter in the context of this workbench.
 
-Notice the `<contributor />` XML node, you’ll have to make sure you also have same values in **data/users.json**, see [users.json][#users-json-schema].
+Notice the `<contributor />` XML node, you’ll have to make sure you also have same values in **data/users.json**, see [users.json][#usersjson-schema].
 
 ```xml
 <foo>
