@@ -1,34 +1,19 @@
 apis/es
 Beginners/es
-beginners/es
 Beginners/ja
-beginners/ja
 Beginners/ko
-beginners/ko
-beginners/pt-br
 Beginners/pt-br
 Beginners/tr
-beginners/tr
-beginners/zh
 Beginners/zh
 concepts/accessibility/es
 concepts/accessibility/ja
 concepts/es
-concepts/internet and web/how does the internet work/es
 concepts/Internet and Web/How does the Internet Work/es
-concepts/internet and web/how does the internet work/ja
 concepts/Internet and Web/How does the Internet Work/ja
 concepts/Internet and Web/the history of the web/es
-concepts/internet and web/the history of the web/es
 concepts/Internet and Web/the history of the web/ja
-concepts/internet and web/the history of the web/ja
 concepts/Internet and Web/the history of the web/tr
-concepts/internet and web/the history of the web/tr
-concepts/internet and web/the web standards model/ja
-concepts/Internet and Web/the web standards model/ja
 concepts/Internet and Web/The Web Standards Model/ja
-concepts/internet and web/The Web Standards Model/ja
-concepts/programming/programming basics/ja
 concepts/web design/es
 css/es
 css/fr
@@ -70,7 +55,6 @@ html/elements/b/ja
 html/elements/base/ja
 html/es
 html/ja
-html text/es
 javascript/ja
 Main Page/de
 Main Page/es
@@ -81,7 +65,6 @@ Main Page/nl
 Main Page/pt-br
 Main Page/tr
 Main Page/zh
-Main Page/zh-hans
 Main Page/zh-hant
 svg/es
 tutorials/box model/ja

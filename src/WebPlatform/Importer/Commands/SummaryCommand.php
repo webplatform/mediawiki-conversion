@@ -87,6 +87,13 @@ DESCR;
         $temporary_acceptable_duplicates = [];
         //$temporary_acceptable_duplicates[] = 'css/selectors/pseudo-classes/:lang'; // DONE
 
+        /**
+         * Last minute redirects. Order matters.
+         */
+        $redirects['after'] = 'css/selectors/pseudo-elements/after';
+        $redirects['tutorials/What_is_CSS'] = 'tutorials/learning_what_css_is';
+        $redirects['html/attributes/type type (a, link, embed)'] = 'html/attributes/type';
+
         /* -------------------- Author --------------------
          *
          * Author array of MediaWikiContributor objects with $this->users[$uid],
@@ -225,13 +232,13 @@ DESCR;
                     $moreThanHundredRevs[] = sprintf('%s (%d)', $title, $revs);
                 }
 
-                if ($is_translation === true) {
+                if ($is_translation === true && $wikiDocument->hasRedirect() === false) {
                     $translations[] = $title;
                 }
 
                 // The ones with invalid URL characters that shouldn’t be part of
                 // a page name because they may confuse with their natural use (:,(,),!,?)
-                if ($title !== $normalized_location) {
+                if ($title !== $normalized_location && $wikiDocument->hasRedirect() === false) {
                     $sanity_redirs[$title] = $normalized_location;
                 }
 
@@ -258,11 +265,13 @@ DESCR;
                     // pass them within the $pages aray because they would be
                     // empty content with only a redirect anyway.
                     if ($normalized_location !== $redirect_to) {
-                        $redirects[$normalized_location] = $redirect_to;
+                        $redirects[str_replace('_', ' ', $normalized_location)] = $redirect_to;
                     }
                 } elseif (!in_array($normalized_location, array_keys($pages))) {
                     // Pages we know has content, lets count them!
-                    $pages[$normalized_location] = $title;
+                    if ($wikiDocument->hasRedirect() === false) {
+                        $pages[$normalized_location] = $title;
+                    }
                 } elseif (in_array($title, $temporary_acceptable_duplicates)) {
                     // Lets not throw, we got that covered.
                 } else {
@@ -334,45 +343,43 @@ DESCR;
         }
         $this->filesystem->dumpFile('reports/url_parts_variants.txt', implode(PHP_EOL, $urlPartsAllOut));
 
+        ksort($redirects, SORT_NATURAL|SORT_FLAG_CASE);
+        ksort($sanity_redirs, SORT_NATURAL|SORT_FLAG_CASE);
+
         $nginx_redirects = [];
+        $nginx_redirects[] = 'rewrite ^/wiki/((Special|Template|User).*) /disabled?r=$1 permanent;';
+        $nginx_redirects[] = 'rewrite ^/w/(.*) /disabled?r=$1 permanent;';
+        $nginx_redirects[] = 'rewrite ^/$ /Main_Page permanent;';
+        $nginx_redirects[] = 'rewrite ^/wiki/?$ /Main_Page permanent;';
+        //                             /wiki/tutorials/canvas/canvas_tutorial
+        //$nginx_redirects[] = 'rewrite ^/wiki/canvas/tutorial(.*)$ /wiki/tutorials/canvas$1 permanent;';
+        $nginx_redirects[] = 'rewrite ^/wiki/WPD\:Community$ /community permanent;';
+        $nginx_redirects[] = 'rewrite ^/wiki/WPD\:Contributors_Guide$ /contribute permanent;';
+
         $nginx_esc[':'] = '\\:';
         $nginx_esc['('] = '\\(';
         $nginx_esc[')'] = '\\)';
+        $nginx_esc[','] = '\\,';
         $nginx_esc[' '] = '(\ |_)'; // Ordering matter, otherwise the () will be escaped and we want them here!
 
-        $sanity_redirects_out = array('URLs to return new Location (from => to):');
+        $prepare_nginx_redirects = array_merge($sanity_redirs, $redirects);
+        foreach ($prepare_nginx_redirects as $url => $redirect_to) {
+            // NGINX Case-insensitive redirect? Its done through (?i)! Should be documented!!!
+            $nginx_redirects[] = sprintf('rewrite (?i)^/wiki/%s$ /%s permanent;', str_replace(array_keys($nginx_esc), $nginx_esc, $url), $redirect_to);
+        }
+        $this->filesystem->dumpFile('reports/nginx_redirects.map', implode(PHP_EOL, $nginx_redirects));
 
+        $sanity_redirects_out = array('URLs to return new Location (from => to):');
         foreach ($sanity_redirs as $title => $sanitized) {
             $sanity_redirects_out[] = sprintf(' - "%s": "%s"', $title, $sanitized);
-            $nginx_redirects[] = sprintf('rewrite ^/wiki/%s$ /%s permanent;', str_replace(array_keys($nginx_esc), $nginx_esc, $title), $sanitized); // NGINX redirect line
         }
         $this->filesystem->dumpFile('reports/sanity_redirects.txt', implode(PHP_EOL, $sanity_redirects_out));
-
-        // Last minute redirects?
-        $redirects['after'] = 'css/selectors/pseudo-elements/after';
-        $redirects['tutorials/What_is_CSS'] = 'tutorials/learning_what_css_is';
-
-        $redirects['canvas/tutorial/Canvas tutorial'] = 'tutorials/canvas/Canvas_tutorial';
-        $redirects['canvas/tutorial/Canvas tutorial/Basic usage'] = 'tutorials/canvas/Canvas_tutorial/Basic_usage';
-        $redirects['canvas/tutorial/Canvas tutorial/Drawing shapes'] = 'tutorials/canvas/Canvas_tutorial/Drawing_shapes';
-        $redirects['canvas/tutorial/Canvas tutorial/Using images'] = 'tutorials/canvas/Canvas_tutorial/Using_images';
-        $redirects['canvas/tutorial/Canvas tutorial/Applying styles and colors'] = 'tutorials/canvas/Canvas_tutorial/Applying_styles_and_colors';
-        $redirects['canvas/tutorial/Canvas tutorial/Transformations'] = 'tutorials/canvas/Canvas_tutorial/Transformations';
-        $redirects['canvas/tutorial/Canvas tutorial/Compositing'] = 'tutorials/canvas/Canvas_tutorial/Compositing';
-        $redirects['canvas/tutorial/Canvas tutorial/Basic animations'] = 'tutorials/canvas/Canvas_tutorial/Basic_animations';
-        $redirects['html/attributes/type type (a, link, embed)'] = 'html/attributes/type';
 
         $redirects_out = array('Redirects (from => to):');
         foreach ($redirects as $url => $redirect_to) {
             $redirects_out[] = sprintf(' - "%s": "%s"', $url, $redirect_to);
-            $nginx_redirects[] = sprintf('rewrite ^/wiki/%s$ /%s permanent;', str_replace(array_keys($nginx_esc), $nginx_esc, $url), $redirect_to); // NGINX redirect line
         }
         $this->filesystem->dumpFile('reports/redirects.txt', implode(PHP_EOL, $redirects_out));
-
-        $nginx_redirects[] = 'rewrite ^/$ /Main_Page permanent;';
-        $nginx_redirects[] = 'rewrite ^/wiki/?$ /Main_Page permanent;';
-
-        $this->filesystem->dumpFile('reports/nginx_redirects.map', implode(PHP_EOL, $nginx_redirects));
 
     }
 }
