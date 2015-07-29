@@ -212,9 +212,24 @@ They were commited in this repository to illustrate how this workbench got from 
 
 This report shows wiki documents that are directly on root, it helps to know what are the pages at top level before running the import.
 
-### Hundred Revs(isions)
+```
+// file reports/directly_on_root.txt
+absolute unit
+accessibility article ideas
+Accessibility basics
+Accessibility testing
+// ...
+```
+
+### Hundred Rev(ision)s
 
 This shows the wiki pages that has more than 100 edits.
+
+```
+// file reports/hundred_revs.txt
+tutorials/Web Education Intro (105)
+// ...
+```
 
 ### Numbers
 
@@ -224,9 +239,19 @@ A summary of the content:
 * Content pages: Pages that are still with content (i.e. not deleted)
 * redirects: Pages that redirects to other pages (i.e. when deleted, author asked to redirect)
 
-### Problematic Authors
 
-This file should ideally be empty
+```
+// file reports/numbers.txt
+Numbers:
+  - iterations: 5079
+  - redirects: 404
+  - translated: 101
+  - "content pages": 4662
+  - "not in a directory": 104
+  - "redirects for URL sanity": 1217
+  - "edits average": 7
+  - "edits median": 5
+```
 
 ### Redirects
 
@@ -234,9 +259,26 @@ Pages that had been deleted and author asked to redirect.
 
 This will be useful for a webserver 301 redirect map
 
+```
+// file reports/redirects.txt
+Redirects (from => to):
+ - "sxsw_talk_proposal": "WPD/sxsw_talk_proposal"
+ - "css/Properties/color": "css/properties/color"
+// ...
+```
+
 ### Sanity redirects
 
 All pages that had invalid filesystem characters (e.g. `:`,`(`,`)`,`@`) in their URL (e.g. `css/atrules/@viewport`) to make sure we don’t lose the original URL, but serve the appropriate file.
+
+```
+// file reports/sanity_redirects.txt
+URLs to return new Location (from => to):
+ - "tutorials/Web Education Intro": "tutorials/Web_Education_Intro"
+ - "concepts/programming/about javascript": "concepts/programming/about_javascript"
+ - "concepts/accessibility/accessibility basics": "concepts/accessibility/accessibility_basics"
+// ...
+```
 
 ### Summary
 
@@ -244,9 +286,39 @@ Shows all pages, the number of revisions, the date and message of the commit.
 
 This report is generated through `app/console mediawiki:summary` and we redirect output to this file.
 
+```yml
+# file reports/symmary.yml
+"tutorials/Web Education Intro":
+  - normalized: tutorials/Web_Education_Intro
+  - file: out/content/tutorials/Web_Education_Intro/index.md
+  - revs: 105
+  - revisions:
+    - id: 1
+      date: Tue, 29 May 2012 17:37:32 +0000
+      message: Edited by MediaWiki default
+    - id: 1059
+      date: Wed, 22 Aug 2012 15:56:45 +0000
+      message: Edited by Cmills
+# ...
+```
+
 ### URL all
 
 All URLs sorted (as much as PHP can sort URLs).
+
+```
+// file reports/url_all.txt
+absolute unit
+accessibility article ideas
+Accessibility basics
+Accessibility testing
+after
+alignment
+apis
+apis/ambient light
+apis/appcache
+// ...
+```
 
 ### URL parts
 
@@ -254,13 +326,56 @@ A list of all URL components, only unique entries.
 
 If you have collisions due to casing, you should review in **url parts variants**.
 
+```
+// file reports/url_parts.txt
+0_n_Properties
+1_9_Properties
+3d_css
+3d_graphics_and_effects
+20thing_pageflip
+a
+abbr
+abort
+// ...
+```
+
 ### URL parts variants
 
 A list of all URL components, showing variants in casing that will create file name conflicts during coversion.
 
-Not all of the entries in "reports/url_parts_variants.md" are problematic, you’ll have to review all your URLs and adapt your own copy of `TitleFilter`, see [WebPlatform/Importer/Filter/TitleFilter][title-filter].
+Not all of the entries in "reports/url_parts_variants.md" are problematic, you’ll have to review all your URLs and adapt your own copy of `TitleFilter`, see [WebPlatform/Importer/Filter/TitleFilter][title-filter] class.
 
 More about this at [Possible file name conflicts due to casing inconsistency](#possible-file-name-conflicts-due-to-casing-inconsistency)
+
+```
+// file reports/url_parts_variants.txt
+All words that exists in an URL, and the different ways they are written (needs harmonizing!):
+ - css, CSS
+ - canvas_tutorial, Canvas_tutorial
+ - The_History_of_the_Web, The_history_of_the_Web, the_history_of_the_web
+// ...
+```
+
+Beware of the false positives. In the example above, we might have "css" in many parts of the URL, we can’t just rewrite for EVERY cases. In this case, you’ll notice in [TitleFilter class][title-filter] that we rewrite explicitly in the following format `'css\/cssom\/styleSheet';`, `'css\/selectors';`, etc.
+
+You’ll have to adapt *TitleFilter* to suit your own content.
+
+
+### NGINX Redirects
+
+What will be the NGINX redirects.
+
+This will most likely need tampering to suit your own project specifities.
+
+```
+// file reports/nginx_redirects.map
+rewrite ^/wiki/css/selectors/pseudo-elements/\:\:after$ /css/selectors/pseudo-elements/after permanent;
+rewrite ^/wiki/css/selectors/pseudo-classes/\:lang\(c\)$ /css/selectors/pseudo-classes/lang permanent;
+rewrite ^/wiki/css/selectors/pseudo-classes/\:nth-child\(n\)$ /css/selectors/pseudo-classes/nth-child permanent;
+rewrite ^/wiki/css/functions/skew\(\)$ /css/functions/skew permanent;
+rewrite ^/wiki/html/attributes/background(\ |_)\(Body(\ |_)element\)$ /html/attributes/background_Body_element permanent;
+// ...
+```
 
 
 ---
@@ -314,7 +429,7 @@ tutorials/
 Notice that we would have at the same directory level with two folders
 with almost the same name but with different casing patterns.
 
-This is what [TitleFilter][title-filter] is for.
+This is what *[TitleFilter][title-filter] class* is for.
 
 
 ### Required

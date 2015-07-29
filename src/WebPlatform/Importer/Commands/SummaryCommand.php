@@ -73,7 +73,6 @@ DESCR;
         $counter = 0;    // Increment the number of pages we are going through
         $redirects = [];
         $pages = [];
-        $problematicAuthors = [];
         $urlParts = [];
 
         $urlsWithContent = [];
@@ -313,7 +312,6 @@ DESCR;
         $this->filesystem->dumpFile('reports/numbers.txt', implode($numbers, PHP_EOL));
 
         $this->filesystem->dumpFile('reports/hundred_revs.txt', implode($moreThanHundredRevs, PHP_EOL));
-        $this->filesystem->dumpFile('reports/problematic_authors.txt', implode($problematicAuthors, PHP_EOL));
 
         natcasesort($translations);
         $this->filesystem->dumpFile('reports/translations.txt', implode(PHP_EOL, $translations));
@@ -336,9 +334,17 @@ DESCR;
         }
         $this->filesystem->dumpFile('reports/url_parts_variants.txt', implode(PHP_EOL, $urlPartsAllOut));
 
+        $nginx_redirects = [];
+        $nginx_esc[':'] = '\\:';
+        $nginx_esc['('] = '\\(';
+        $nginx_esc[')'] = '\\)';
+        $nginx_esc[' '] = '(\ |_)'; // Ordering matter, otherwise the () will be escaped and we want them here!
+
         $sanity_redirects_out = array('URLs to return new Location (from => to):');
+
         foreach ($sanity_redirs as $title => $sanitized) {
             $sanity_redirects_out[] = sprintf(' - "%s": "%s"', $title, $sanitized);
+            $nginx_redirects[] = sprintf('rewrite ^/wiki/%s$ /%s permanent;', str_replace(array_keys($nginx_esc), $nginx_esc, $title), $sanitized); // NGINX redirect line
         }
         $this->filesystem->dumpFile('reports/sanity_redirects.txt', implode(PHP_EOL, $sanity_redirects_out));
 
@@ -346,10 +352,26 @@ DESCR;
         $redirects['after'] = 'css/selectors/pseudo-elements/after';
         $redirects['tutorials/What_is_CSS'] = 'tutorials/learning_what_css_is';
 
+        $redirects['canvas/tutorial/Canvas tutorial'] = 'tutorials/canvas/Canvas_tutorial';
+        $redirects['canvas/tutorial/Canvas tutorial/Basic usage'] = 'tutorials/canvas/Canvas_tutorial/Basic_usage';
+        $redirects['canvas/tutorial/Canvas tutorial/Drawing shapes'] = 'tutorials/canvas/Canvas_tutorial/Drawing_shapes';
+        $redirects['canvas/tutorial/Canvas tutorial/Using images'] = 'tutorials/canvas/Canvas_tutorial/Using_images';
+        $redirects['canvas/tutorial/Canvas tutorial/Applying styles and colors'] = 'tutorials/canvas/Canvas_tutorial/Applying_styles_and_colors';
+        $redirects['canvas/tutorial/Canvas tutorial/Transformations'] = 'tutorials/canvas/Canvas_tutorial/Transformations';
+        $redirects['canvas/tutorial/Canvas tutorial/Compositing'] = 'tutorials/canvas/Canvas_tutorial/Compositing';
+        $redirects['canvas/tutorial/Canvas tutorial/Basic animations'] = 'tutorials/canvas/Canvas_tutorial/Basic_animations';
+
         $redirects_out = array('Redirects (from => to):');
         foreach ($redirects as $url => $redirect_to) {
             $redirects_out[] = sprintf(' - "%s": "%s"', $url, $redirect_to);
+            $nginx_redirects[] = sprintf('rewrite ^/wiki/%s$ /%s permanent;', str_replace(array_keys($nginx_esc), $nginx_esc, $url), $redirect_to); // NGINX redirect line
         }
         $this->filesystem->dumpFile('reports/redirects.txt', implode(PHP_EOL, $redirects_out));
+
+        $nginx_redirects[] = 'rewrite ^/$ /Main_Page permanent;';
+        $nginx_redirects[] = 'rewrite ^/wiki/?$ /Main_Page permanent;';
+
+        $this->filesystem->dumpFile('reports/nginx_redirects.map', implode(PHP_EOL, $nginx_redirects));
+
     }
 }

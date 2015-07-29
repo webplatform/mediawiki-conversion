@@ -105,7 +105,6 @@ DESCR;
         $counter = 0;    // Increment the number of pages we are going through
         $redirects = [];
         $pages = [];
-        $problematicAuthors = [];
         $urlParts = [];
 
         if (count($retries) >= 1 && $retries[0] !== '' && $passNbr !== 3) {
