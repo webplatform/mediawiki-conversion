@@ -436,8 +436,8 @@ This is what *[TitleFilter][title-filter] class* is for.
 
 Two files are required to run the workbench;
 
-* ***data/dumps/main_full.xml*** with all the pages and revisions as described in [XML Schema][#xml-schema]
-* ***data/users.json*** with matching values from *contributor* XML node from *XML Schema*, as described in [Users.json Schema][#users-json-schema].
+* ***data/dumps/main_full.xml*** with all the pages and revisions as described in [XML Schema](#xml-schema)
+* ***data/users.json*** with matching values from *contributor* XML node from *XML Schema*, as described in [Users.json Schema](#users-json-schema).
 
 #### XML Schema
 
@@ -485,7 +485,7 @@ Notice the `<contributor />` XML node, you’ll have to make sure you also have 
 
 #### Users.json Schema
 
-The origin of the data isn’t important but you have to make sure that it matches with values in [XML schema][#xml-schema]:
+The origin of the data isn’t important but you have to make sure that it matches with values in [XML schema](#xml-schema):
 
 
 * "`user_id`"  === `//foo/page/revision/contributor/id`. Note that the format illustrated works and this library will typecast the string into an integer
