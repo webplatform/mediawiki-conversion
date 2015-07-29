@@ -1629,5 +1629,6 @@ rewrite ^/wiki/canvas/tutorial/Canvas(\ |_)tutorial/Applying(\ |_)styles(\ |_)an
 rewrite ^/wiki/canvas/tutorial/Canvas(\ |_)tutorial/Transformations$ /tutorials/canvas/Canvas_tutorial/Transformations permanent;
 rewrite ^/wiki/canvas/tutorial/Canvas(\ |_)tutorial/Compositing$ /tutorials/canvas/Canvas_tutorial/Compositing permanent;
 rewrite ^/wiki/canvas/tutorial/Canvas(\ |_)tutorial/Basic(\ |_)animations$ /tutorials/canvas/Canvas_tutorial/Basic_animations permanent;
+rewrite ^/wiki/html/attributes/type(\ |_)type(\ |_)\(a,(\ |_)link,(\ |_)embed\)$ /html/attributes/type permanent;
 rewrite ^/$ /Main_Page permanent;
 rewrite ^/wiki/?$ /Main_Page permanent;

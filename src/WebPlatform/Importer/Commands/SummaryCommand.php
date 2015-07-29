@@ -360,6 +360,7 @@ DESCR;
         $redirects['canvas/tutorial/Canvas tutorial/Transformations'] = 'tutorials/canvas/Canvas_tutorial/Transformations';
         $redirects['canvas/tutorial/Canvas tutorial/Compositing'] = 'tutorials/canvas/Canvas_tutorial/Compositing';
         $redirects['canvas/tutorial/Canvas tutorial/Basic animations'] = 'tutorials/canvas/Canvas_tutorial/Basic_animations';
+        $redirects['html/attributes/type type (a, link, embed)'] = 'html/attributes/type';
 
         $redirects_out = array('Redirects (from => to):');
         foreach ($redirects as $url => $redirect_to) {

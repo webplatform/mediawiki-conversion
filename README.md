@@ -488,7 +488,7 @@ Notice the `<contributor />` XML node, you’ll have to make sure you also have 
 The origin of the data isn’t important but you have to make sure that it matches with values in [XML schema](#xml-schema):
 
 
-* "`user_id`"  === `//foo/page/revision/contributor/id`. Note that the format illustrated works and this library will typecast the string into an integer
+* "`user_id`"  === `//foo/page/revision/contributor/id`. Note that the value is a string but the class `WebPlatform\ContentConverter\Model\MediaWikiContributor` will typecast into an integer
 * "`user_name`" === `//foo/page/revision/contributor/username`.
 
 As for the email address, it isn’t required because we’ll create a  git committer ID concatenating the value of "`user_name`" AND the value you would set in `lib/mediawiki.php` at the `COMMITER_ANONYMOUS_DOMAIN` constant (e.g. `COMMITER_ANONYMOUS_DOMAIN` is set to "docs.webplatform.org", commit author and commiter will be `Jdoe@docs.webplatform.org`).

@@ -413,3 +413,4 @@ Redirects (from => to):
  - "canvas/tutorial/Canvas tutorial/Transformations": "tutorials/canvas/Canvas_tutorial/Transformations"
  - "canvas/tutorial/Canvas tutorial/Compositing": "tutorials/canvas/Canvas_tutorial/Compositing"
  - "canvas/tutorial/Canvas tutorial/Basic animations": "tutorials/canvas/Canvas_tutorial/Basic_animations"
+ - "html/attributes/type type (a, link, embed)": "html/attributes/type"
