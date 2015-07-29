@@ -404,3 +404,4 @@ Redirects (from => to):
  - "rtc": "html/elements/rtc"
  - "html/attributes/longDesc": "html/attributes/longdesc"
  - "after": "css/selectors/pseudo-elements/after"
+ - "tutorials/What_is_CSS": "tutorials/learning_what_css_is"

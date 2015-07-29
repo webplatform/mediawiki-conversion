@@ -1,35 +1,20 @@
-# Export MediaWiki into flat files
+# Export MediaWiki wiki pages and history into a git repository
 
-Export content stored in an XML file and convert into a git repository.
+Or any set of `<page />` with `<revision />` stored in an XML file. See [required XML schema](#xml-schema).
 
-In fact if you have an XML file with similar format as below, you could use this workbench.
+Expected outcome of this script will give you a Git repository.
 
-```
-<foo>
-  <page>
-    <title>tutorials/Web Education Intro</title>
-    <ns>0</ns>
-    <id>1</id>
-    <revision>
-      <id>39463</id>
-      <timestamp>2013-10-24T20:33:53Z</timestamp>
-      <contributor>
-        <username>Jdoe</username>
-        <id>11</id>
-      </contributor>
-      <comment>Some optionnal edit comment</comment>
-      <text xml:space="preserve">Some '''text''' to import</text>
-    </revision>
-    <!-- more revision goes here -->
-  </page>
-  <!-- more page nodes goes here -->
-</foo>
-```
+![MediaWiki history into Git repository](https://cloud.githubusercontent.com/assets/296940/8805874/a16047a4-2fa1-11e5-8ddf-22ea3d179dc9.png)
+
+With idempotent revisions
+
+![mediawiki-git-comparing-commits](https://cloud.githubusercontent.com/assets/296940/8805914/e457145c-2fa1-11e5-8cbf-323cac481846.png)
 
 
-## Features
+### Features
 
-* Convert MediaWiki wiki page history into Git repository on a filesystem
+* Convert MediaWiki wiki page history into Git repository
+* Create git commits per revisions with preserved author and date
 * Dump every page into text files, organized by their url (e.g. `css/properties`, `css/properties/index.md`), without any modifications
 * Read data from MediaWiki’s recommended MediaWiki way of backups (i.e. `maintenance/dumpBackup.php`)
 * Get "reports" about the content: deleted pages, redirects, translations, number of revisions per page
@@ -39,6 +24,15 @@ In fact if you have an XML file with similar format as below, you could use this
 * Ability to run script from backed up XML file (i.e. once we have XML files, no need to run script on same server)
 * Import metadata such as Categories, and list of authors into generated files
 * Ability to detect if a page is a translation, create a file in the same folder with language name
+
+
+### Potential quirks
+
+* Keeps commit dates, but order of commits isn’t in chronological order
+* Commits follows this loop: loop through page and page create a commit for each revisions.
+
+
+---
 
 
 ## Use
@@ -114,14 +108,19 @@ to get the parser to give us the generated HTML at the 3rd pass.
   mkdir out
   ```
 
-1. **Review `WebPlatform\Importer\Commands\RunCommand` class, adapt to your installation**
 
-  * **apiUrl** should point to your own MediaWiki installation you are exporting from
-  * If you need to superseed a user, look at the comment "Fix duplicates and merge them as only one" uncomment and adjust to your own project
+1. **Review the following to adapt to your installation**
+
+  * **lib/mediawiki.php**;
+    * `MEDIAWIKI_API_ORIGIN` to match your own MediaWiki installation you are exporting from
+    * `COMMITER_ANONYMOUS_DOMAIN` to match the domain name you want your users to use email domain. (Useful to expose history and users, without giving away their real email address.)
+  * If you need to superseed a user, look at the `WebPlatform\Importer\Commands\RunCommand` class at the comment "Fix duplicates and merge them as only one", uncomment and adjust to suit your needs.
+
 
 1. **Review [TitleFilter][title-filter] and adapt the rules according to your content**
 
   Refer to [Reports](#Reports), at the [URL parts variants](#url-parts-variants) report where you may find possible file name conflicts.
+
 
 1. **Run first pass**
 
@@ -199,6 +198,10 @@ to get the parser to give us the generated HTML at the 3rd pass.
   app/console mediawiki:run 3 --retry=1881,1898,1900,1902,1966,1999 >> run.log
   ```
 
+
+---
+
+
 ## Reports
 
 This repository has reports generated during [WebPlatform Docs content from MediaWiki][wpd-repo] migration commited in the `reports/` folder.
@@ -257,7 +260,25 @@ A list of all URL components, showing variants in casing that will create file n
 
 Not all of the entries in "reports/url_parts_variants.md" are problematic, you’ll have to review all your URLs and adapt your own copy of `TitleFilter`, see [WebPlatform/Importer/Filter/TitleFilter][title-filter].
 
-#### Possible file name conflicts due to casing inconsistency
+More about this at [Possible file name conflicts due to casing inconsistency](#possible-file-name-conflicts-due-to-casing-inconsistency)
+
+
+---
+
+
+## Successful imports
+
+Here’s a list of repository that were created through this workspace.
+
+* [**WebPlatform Docs** content from MediaWiki][wpd-repo] into a git repository
+
+
+---
+
+
+## Design decisions
+
+### Possible file name conflicts due to casing inconsistency
 
 Conflicts can be caused to folders being created with different casing.
 
@@ -296,13 +317,85 @@ with almost the same name but with different casing patterns.
 This is what [TitleFilter][title-filter] is for.
 
 
-## Result of import
+### Required
 
-The following repository had been through this script and *successfully imported* [WebPlatform Docs content from MediaWiki][wpd-repo] into a git repository.
+Two files are required to run the workbench;
 
+* ***data/dumps/main_full.xml*** with all the pages and revisions as described in [XML Schema][#xml-schema]
+* ***data/users.json*** with matching values from *contributor* XML node from *XML Schema*, as described in [Users.json Schema][#users-json-schema].
+
+#### XML Schema
+
+MediaWiki `maintenance/dumpBackup` script ([see manual][mw-dumpbackup], [export manual][mw-export] and [xsd definition][mw-dumpbackup-xsd]) has the following XML schema but this script isn’t requiring MediaWiki at all.
+
+In other words, if you can get an XML file with the same schema you can also use this script without changes.
+
+Here are the essential pieces that this script expects along with notes about where they matter in the context of this workbench.
+
+Notice the `<contributor />` XML node, you’ll have to make sure you also have same values in **data/users.json**, see [users.json][#users-json-schema].
+
+```xml
+<foo>
+  <!-- The page XML node will be manipulated via the WebPlatform\ContentConverter\Model\MediaWikiDocument class -->
+  <page>
+    <!-- The URL of the page. This should be the exact string your CMS supports -->
+    <title>tutorials/Web Education Intro</title>
+    <!-- id isn’t essential, but we use it because it helps assess how the run is going -->
+    <id>1</id>
+    <!-- The revision XML node will be manipulated via the WebPlatform\ContentConverter\Model\MediaWikiRevision class -->
+    <revision>
+      <!-- same as the page id note above -->
+      <id>39463</id>
+      <!-- format is in explicit "Zulu" Time.  -->
+      <!-- To import this value in PHP, script does it like this:
+           $date = new \DateTime($timestamp, new \DateTimeZone('Etc/UTC'))); -->
+      <timestamp>2013-10-24T20:33:53Z</timestamp>
+      <!-- contributor XML node requires both username and id pair. The values must match in data/users.json -->
+      <contributor>
+        <username>Jdoe</username>
+        <!-- id must be an integer. This workbench will typecast this node into an integer. -->
+        <id>11</id>
+      </contributor>
+      <!-- comment can be any string you want. The commit message will strip off space, HTML code, and and new lines -->
+      <comment>Some optionnal edit comment</comment>
+      <!-- The page content at that revision. Format isn’t important -->
+      <text xml:space="preserve">Some '''text''' to import</text>
+    </revision>
+    <!-- more revision goes here -->
+  </page>
+  <!-- more page nodes goes here -->
+</foo>
+```
+
+
+#### Users.json Schema
+
+The origin of the data isn’t important but you have to make sure that it matches with values in [XML schema][#xml-schema]:
+
+
+* "`user_id`"  === `//foo/page/revision/contributor/id`. Note that the format illustrated works and this library will typecast the string into an integer
+* "`user_name`" === `//foo/page/revision/contributor/username`.
+
+As for the email address, it isn’t required because we’ll create a  git committer ID concatenating the value of "`user_name`" AND the value you would set in `lib/mediawiki.php` at the `COMMITER_ANONYMOUS_DOMAIN` constant (e.g. `COMMITER_ANONYMOUS_DOMAIN` is set to "docs.webplatform.org", commit author and commiter will be `Jdoe@docs.webplatform.org`).
+
+```json
+[
+  {
+     "user_email": "jdoe@example.org"
+    ,"user_id": "11"
+    ,"user_name": "Jdoe"
+    ,"user_real_name": "John H. Doe"
+    ,"user_email_authenticated": null
+  }
+]
+```
 
   [mwc]: https://github.com/webplatform/mediawiki-conversion
   [action-parser-docs]: https://www.mediawiki.org/wiki/API:Parsing_wikitext
   [wpd-repo]: https://github.com/webplatform/docs
   [title-filter]: src/WebPlatform/Importer/Filter/TitleFilter.php
+  [mw-dumpbackup]: https://www.mediawiki.org/wiki/Manual:DumpBackup.php
+  [mw-dumpbackup-xsd]: https://www.mediawiki.org/xml/export-0.8.xsd
+  [mw-export]: https://www.mediawiki.org/wiki/Help:Export
+  [mw-special-export]: https://www.mediawiki.org/wiki/Manual:Parameters_to_Special:Export
 

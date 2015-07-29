@@ -344,6 +344,7 @@ DESCR;
 
         // Last minute redirects?
         $redirects['after'] = 'css/selectors/pseudo-elements/after';
+        $redirects['tutorials/What_is_CSS'] = 'tutorials/learning_what_css_is';
 
         $redirects_out = array('Redirects (from => to):');
         foreach ($redirects as $url => $redirect_to) {

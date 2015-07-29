@@ -122,9 +122,7 @@ DESCR;
             /*
              * Your MediaWiki API URL
              */
-            $apiUrl = 'https://docs.webplatform.org';
-            //$apiUrl  = 'http://127.0.0.1:8080';
-            $apiUrl .= '/w/api.php?format=json&action=parse&prop=text|links|templates|';
+            $apiUrl .= MEDIAWIKI_API_ORIGIN.'/w/api.php?format=json&action=parse&prop=text|links|templates|';
             $apiUrl .= 'images|externallinks|categories|sections|headitems|displaytitle|iwlinks|properties&pst=1';
             $apiUrl .= '&disabletoc=true&disablepp=true&disableeditsection=true&preview=true&page=';
 
@@ -396,7 +394,7 @@ DESCR;
                         // we’ll create a bogus email alias based on their MediaWiki username.
                         $real_name = $wikiRevision->getContributor()->getRealName();
                         $username = $wikiRevision->getContributor()->getName();
-                        $email = sprintf('%s@docs.webplatform.org', $username);
+                        $email = sprintf('%s@%s', $username, COMMITER_ANONYMOUS_DOMAIN);
                         $author_overload = sprintf('%s <%s>', $real_name, $email);
 
                         try {
