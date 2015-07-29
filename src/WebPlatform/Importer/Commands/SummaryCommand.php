@@ -367,6 +367,7 @@ DESCR;
             // NGINX Case-insensitive redirect? Its done through (?i)! Should be documented!!!
             $nginx_redirects[] = sprintf('rewrite (?i)^/wiki/%s$ /%s permanent;', str_replace(array_keys($nginx_esc), $nginx_esc, $url), $redirect_to);
         }
+        $nginx_redirects[] = 'rewrite ^/wiki/(.*) /$1 permanent;'; // Has to be the last!
         $this->filesystem->dumpFile('reports/nginx_redirects.map', implode(PHP_EOL, $nginx_redirects));
 
         $sanity_redirects_out = array('URLs to return new Location (from => to):');

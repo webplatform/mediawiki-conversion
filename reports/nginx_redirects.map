@@ -1413,3 +1413,4 @@ rewrite (?i)^/wiki/tutorials/what(\ |_)is(\ |_)css$ /tutorials/learning_what_css
 rewrite (?i)^/wiki/tutorials/What_is_CSS$ /tutorials/learning_what_css_is permanent;
 rewrite (?i)^/wiki/tutorials/why(\ |_)use(\ |_)css$ /tutorials/learning_why_we_use_css permanent;
 rewrite (?i)^/wiki/tutorials/Your(\ |_)first(\ |_)look(\ |_)at(\ |_)JavaScript$ /tutorials/your_first_look_at_javascript permanent;
+rewrite ^/wiki/(.*) /$1 permanent;
