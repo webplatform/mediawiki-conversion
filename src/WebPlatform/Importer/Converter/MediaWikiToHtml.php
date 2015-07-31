@@ -94,7 +94,10 @@ class MediaWikiToHtml implements ConverterInterface
             try {
                 $content = $this->getPageFromApi($revision->getTitle());
             } catch (Exception $e) {
-                throw new Exception('Could not get data from API', 0, $e);
+                $title = $revision->getTitle();
+                $url = $this->apiUrl.urlencode($title);
+                $message = sprintf('Could not get data from API for %s with the following URI %s', $title, $url);
+                throw new Exception($message, 0, $e);
             }
 
             $front_matter = [];

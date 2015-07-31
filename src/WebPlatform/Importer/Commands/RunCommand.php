@@ -12,6 +12,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Yaml;
 use Prewk\XmlStringStreamer;
 use Bit3\GitPhp\GitException;
 use WebPlatform\Importer\GitPhp\GitRepository;
@@ -33,6 +34,8 @@ use DomainException;
 class RunCommand extends Command
 {
     protected $users = array();
+
+    protected $missed = array();
 
     /** @var WebPlatform\ContentConverter\Converter\MediaWikiToHtml Symfony Filesystem handler */
     protected $converter;
@@ -84,6 +87,7 @@ DESCR;
                     new InputOption('retry', '', InputOption::VALUE_OPTIONAL, 'List of indexes you want to query again', null),
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per page ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of pages', 0),
+                    new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run a 3rd pass only for them'),
                 ]
             );
     }
@@ -101,6 +105,7 @@ DESCR;
 
         $maxHops = (int) $input->getOption('max-pages');   // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
+        $listMissed = $input->getOption('missed');
 
         $counter = 0;    // Increment the number of pages we are going through
         $redirects = [];
@@ -109,6 +114,26 @@ DESCR;
 
         if (count($retries) >= 1 && $retries[0] !== '' && $passNbr !== 3) {
             throw new DomainException('Retry option is only supported at 3rd pass');
+        }
+
+        if ($listMissed === true && $passNbr === 3) {
+            $missed_file = DATA_DIR.'/missed.yml';
+            if (realpath($missed_file) === false) {
+                throw new Exception(sprintf('Could not find missed file at %s', $missed_file));
+            }
+            $missedFileContents = file_get_contents($missed_file);
+            $parser = new Yaml\Parser();
+            try {
+                $missed = $parser->parse($missedFileContents);
+            } catch (Exception $e) {
+                throw new Exception(sprintf('Could not get file %s contents to be parsed as YAML. Is it in YAML format?', $missed_file), null, $e);
+            }
+            if (!isset($missed['missed'])) {
+                throw new Exception('Please ensure missed.yml has a list of titles under a "missed:" top level key');
+            }
+            $this->missed = $missed['missed'];
+        } elseif ($listMissed === true && $passNbr !== 3) {
+            throw new DomainException('Missed option is only supported at 3rd pass');
         }
 
         $repoInitialized = (realpath(GIT_OUTPUT_DIR.'/.git') === false) ? false : true;
@@ -121,7 +146,7 @@ DESCR;
             /*
              * Your MediaWiki API URL
              */
-            $apiUrl .= MEDIAWIKI_API_ORIGIN.'/w/api.php?format=json&action=parse&prop=text|links|templates|';
+            $apiUrl  = MEDIAWIKI_API_ORIGIN.'/w/api.php?format=json&action=parse&prop=text|links|templates|';
             $apiUrl .= 'images|externallinks|categories|sections|headitems|displaytitle|iwlinks|properties&pst=1';
             $apiUrl .= '&disabletoc=true&disablepp=true&disableeditsection=true&preview=true&page=';
 
@@ -179,11 +204,13 @@ DESCR;
              * 2. Current iteration ($counter) *isn’t listed* in $retries; go to next.
              *
              * 3. We have no entries in $retries anymore, exit.
+             *
+             * ... THIS IS BOGUS, USE --missed INSTEAD!
              */
-            if (isset($retries) && in_array($counter, $retries)) {
-                $retryNodeIndex = array_search($counter, $retries);
+            if (isset($retries) && in_array($indexCorrector, $retries)) {
+                $retryNodeIndex = array_search($indexCorrector, $retries);
                 unset($retries[$retryNodeIndex]);
-                $output->writeln(PHP_EOL.sprintf('Will work on %d', $counter).PHP_EOL);
+                $output->writeln(PHP_EOL.sprintf('Will work on %d', $indexCorrector).PHP_EOL);
             } elseif (isset($retries) && count($retries) >= 1) {
                 ++$counter;
                 continue;
@@ -226,13 +253,18 @@ DESCR;
                 $language_code = $wikiDocument->getLanguageCode();
                 $language_name = $wikiDocument->getLanguageName();
 
-                $revs = $wikiDocument->getRevisions()->count();
+                if ($listMissed === true && !in_array($normalized_location, $this->missed)) {
+                    ++$counter;
+                    continue;
+                }
 
                 if ($passNbr === 3 && $wikiDocument->hasRedirect() === false) {
                     $random = rand(5, 10);
                     $output->writeln(PHP_EOL.sprintf('--- sleep for %d to not break production ---', $random));
                     sleep($random);
                 }
+
+                $revs = $wikiDocument->getRevisions()->count();
 
                 $output->writeln(sprintf('"%s":', $title));
                 $output->writeln(sprintf('  - index: %d', $counter));
@@ -343,7 +375,7 @@ DESCR;
                             $revision = $this->converter->apply($wikiRevision);
                         } catch (Exception $e) {
                             $output->writeln(sprintf('    - ERROR: %s, left a note in errors/%d.txt', $e->getMessage(), $counter));
-                            $this->filesystem->dumpFile(sprintf('errors/%d.txt', $counter), $title);
+                            $this->filesystem->dumpFile(sprintf('errors/%d.txt', $counter), $e->getMessage());
                             ++$counter;
                             continue;
                         }

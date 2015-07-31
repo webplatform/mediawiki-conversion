@@ -11,6 +11,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Yaml;
 use Prewk\XmlStringStreamer;
 use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
@@ -27,6 +28,8 @@ use Exception;
 class SummaryCommand extends Command
 {
     protected $users = array();
+
+    protected $missed = array();
 
     /** @var Symfony\Component\Filesystem\Filesystem Symfony Filesystem handler */
     protected $filesystem;
@@ -54,6 +57,7 @@ DESCR;
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of documents', 0),
                     new InputOption('display-author', '', InputOption::VALUE_NONE, 'Display or not the author and email address (useful to hide info for public reports), defaults to false'),
                     new InputOption('indexes', '', InputOption::VALUE_NONE, 'Whether or not we display loop indexes'),
+                    new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run a 3rd pass only for them'),
                 ]
             );
     }
@@ -69,11 +73,13 @@ DESCR;
 
         $maxHops = (int) $input->getOption('max-pages');    // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
+        $listMissed = $input->getOption('missed');
 
         $counter = 0;    // Increment the number of pages we are going through
         $redirects = [];
         $pages = [];
         $urlParts = [];
+        $missedIndexes = [];
 
         $urlsWithContent = [];
         $moreThanHundredRevs = [];
@@ -86,6 +92,26 @@ DESCR;
         // to the final migration.
         $temporary_acceptable_duplicates = [];
         //$temporary_acceptable_duplicates[] = 'css/selectors/pseudo-classes/:lang'; // DONE
+
+        if ($listMissed === true) {
+            $output->writeln('We are going to try to give you XML indexes to use for --retry=..., we will therefore limit the revision loops to one.');
+            $missed_file = DATA_DIR.'/missed.yml';
+            if (realpath($missed_file) === false) {
+                throw new Exception(sprintf('Could not find missed file at %s', $missed_file));
+            }
+            $missedFileContents = file_get_contents($missed_file);
+            $parser = new Yaml\Parser();
+            try {
+                $missed = $parser->parse($missedFileContents);
+            } catch (Exception $e) {
+                throw new Exception(sprintf('Could not get file %s contents to be parsed as YAML. Is it in YAML format?', $missed_file), null, $e);
+            }
+            if (!isset($missed['missed'])) {
+                throw new Exception('Please ensure missed.yml has a list of titles under a "missed:" top level key');
+            }
+            $revMaxHops = 1;
+            $this->missed = $missed['missed'];
+        }
 
         /**
          * Last minute redirects. Order matters.
@@ -158,6 +184,10 @@ DESCR;
 
                 if ($is_translation === true) {
                     $output->writeln(sprintf('  - lang: %s (%s)', $language_code, $language_name));
+                }
+
+                if ($listMissed === true && in_array($normalized_location, $this->missed)) {
+                    $missedIndexes[$counter] = $title;
                 }
 
                 $output->writeln(sprintf('  - revs: %d', $revs));
@@ -382,5 +412,18 @@ DESCR;
         }
         $this->filesystem->dumpFile('reports/redirects.txt', implode(PHP_EOL, $redirects_out));
 
+        if ($listMissed === true) {
+            $yaml = new Yaml\Dumper();
+            $yaml->setIndentation(2);
+
+            try {
+                $missed_out = $yaml->dump($missedIndexes, 3, 0, false, false);
+            } catch (Exception $e) {
+                $missed_out = sprintf('Could not create YAML out of missedIndexes array; Error was %s', $e->getMessage());
+            }
+            $this->filesystem->dumpFile('reports/missed_retry_argument.txt', 'app/console mediawiki:run 3 --retry='.implode(',', array_keys($missedIndexes)));
+            $this->filesystem->dumpFile('reports/missed_entries.yml', 'Missed:'.PHP_EOL.$missed_out);
+            $output->writeln('Created missed_retry_argument.txt and missed_entries.yml in reports/ you can try to recover!');
+        }
     }
 }
