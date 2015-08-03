@@ -84,11 +84,12 @@ DESCR;
                 [
                     new InputArgument('pass', InputArgument::REQUIRED, 'The pass number: 1,2,3', null),
                     new InputOption('xml-source', '', InputOption::VALUE_OPTIONAL, 'What file to read from. Argument is relative from data/ folder from this directory (e.g. foo.xml in data/foo.xml)', 'dumps/main_full.xml'),
-                    new InputOption('resume-at', '', InputOption::VALUE_OPTIONAL, 'Resume run at a specific XML document index number ', 0),
-                    new InputOption('retry', '', InputOption::VALUE_OPTIONAL, 'List of indexes you want to query again', null),
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per page ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of pages', 0),
                     new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run a 3rd pass only for them'),
+                    new InputOption('namespace-prefix', '', InputOption::VALUE_OPTIONAL, 'If not against main MediaWiki namespace, set prefix (e.g. Meta) so we can create a git repo with all contents on root so that we can use export as a submodule.', false),
+                    new InputOption('resume-at', '', InputOption::VALUE_OPTIONAL, 'Resume run at a specific XML document index number ', 0),
+                    new InputOption('retry', '', InputOption::VALUE_OPTIONAL, 'List of indexes you want to query again', null),
                 ]
             );
     }
@@ -108,6 +109,7 @@ DESCR;
         $maxHops = (int) $input->getOption('max-pages');   // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
         $listMissed = $input->getOption('missed');
+        $namespacePrefix = $input->getOption('namespace-prefix');
 
         $counter = 0;    // Increment the number of pages we are going through
         $redirects = [];
@@ -247,11 +249,18 @@ DESCR;
             $pageNode = new SimpleXMLElement($node);
             if (isset($pageNode->title)) {
                 $wikiDocument = new MediaWikiDocument($pageNode);
-                $persistable = new GitCommitFileRevision($wikiDocument, 'out/content/', '.md');
+                //
+                // While importing WPD, Meta and Users namespaces, we were writing into 'out/' directly!
+                //
+                // See note at similar location in SummaryCommand for rationale.
+                //
+                $writeTo = ($namespacePrefix === false) ? 'out/content/' : 'out/';
+                $persistable = new GitCommitFileRevision($wikiDocument, $writeTo, '.md');
 
                 $title = $wikiDocument->getTitle();
                 $normalized_location = $wikiDocument->getName();
                 $file_path = $this->titleFilter->filter($persistable->getName());
+                $file_path = ($namespacePrefix === false) ? $file_path : str_replace(sprintf('%s/', $namespacePrefix), '', $file_path);
                 $redirect_to = $this->titleFilter->filter($wikiDocument->getRedirect()); // False if not a redirect, string if it is
 
                 $is_translation = $wikiDocument->isTranslation();
@@ -412,7 +421,6 @@ DESCR;
                     }
 
                     $persistable->setRevision($revision);
-
                     $this->filesystem->dumpFile($file_path, (string) $persistable);
                     try {
                         $this->git

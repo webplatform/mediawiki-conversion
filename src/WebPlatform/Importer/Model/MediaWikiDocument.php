@@ -150,13 +150,4 @@ class MediaWikiDocument extends BaseMediaWikiDocument
 
         return in_array($this->getLastTitleFragment(), array_keys(self::$translationCodes)) === true;
     }
-
-    public static function normalize($wikiTitle)
-    {
-        $normalized = parent::normalize($wikiTitle);
-
-        // We forgotten to remove & from the file name filter, its
-        // potentially problematic name to use as a file.
-        return preg_replace('~&~u', '_', $normalized);
-    }
 }

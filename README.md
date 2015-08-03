@@ -153,7 +153,10 @@ to get the parser to give us the generated HTML at the 3rd pass.
   This is the most time consuming pass. It’ll make a request to retrieve the HTML output of the current
   latest revision of every wiki page through MediaWiki’s internal Parser API, see [MediaWiki Parsing Wikitext][action-parser-docs].
 
-  At this pass you can *resume-at* and *retry* pages that didn’t work at a previous run.
+  At this pass you can *resume-at* if your script had been interrupted.
+
+  Also, if your run had errors (see in `errors/` folder) you can add the ones you want to be
+  re-run through the `data/missed.yml` file using `--missed` argument.
 
   While the two other pass commits every revision as a single commit, this one is intended to be ONE big commit containing
   ALL the conversion result.
@@ -193,10 +196,96 @@ to get the parser to give us the generated HTML at the 3rd pass.
 
   Gather a coma separated list of erroneous pages and run only them.
 
+  You’ll need to tell `data/missed.yml` which documents needs to be re-run. Each entry has to be in the same
+  name as it would be after the import.
+
+  For example. we missed:
+
+    - html/attributes/href_base
+    - apis/xhr/methods/open_XDomainRequest
+
+  We would enter them in `data/missed.yml` like this, and tell `mediawiki:run` to read from that list.
+
+  ```yaml
+  # data/missed.yml
+  missed:
+    - html/attributes/href_base
+    - apis/xhr/methods/open_XDomainRequest
   ```
-  // for example
-  app/console mediawiki:run 3 --retry=1881,1898,1900,1902,1966,1999 >> run.log
+
+  Then we would run:
+
   ```
+  app/console mediawiki:run 3 --missed >> run.log
+  ```
+
+
+  If you had missed entries during an import made on content with namespace, you would have to format with
+  the namespace name as a prefix to the entry;
+
+  ```yaml
+  # data/missed.yml
+  missed:
+    - WPD/Wishlist
+    - WPD/Stewardship_Committee_Charter
+  ```
+
+  And run like this (see [Import other MediaWiki namespaces](#import-other-mediawiki-namespaces) below for usage details)
+
+
+  ```
+  app/console mediawiki:run 3 --xml-source=dumps/wpd_full.xml --namespace-prefix=WPD --missed >> run.log
+  ```
+
+
+
+1. **Import other MediaWiki namespaces**
+
+  Importing other namespaces is also possible. This import script assumes that the main namespace would contain
+  static site generator code while the other namespaces wouldn’t.
+
+  What we want in the end is a clean main content repository that contains other namespaces as if they are folders, but yet
+  are contained in separate git repositories. Git submodule isn’t always desirable, but our present use-case is perfect for that.
+
+  Imagine you have content in your wiki that starts with "WPD:", you would have exported from your current MediaWiki instance the content
+  through `dumpBackup` script like this
+
+  ```
+  php maintenance/dumpBackup.php --full --filter=namespace:3000 > ~/wpd_full.xml
+  ```
+
+  The XML file would look like this;
+
+  ```xml
+  <!-- Truncated XML, only to illustrate -->
+  <foo>
+  <siteinfo>
+    <namespaces>
+      <namespace key="3000" case="case-sensitive">WPD</namespace>
+      <!-- truncated -->
+    </namespaces>
+  </siteinfo>
+  <page>
+    <title>WPD:Wishlist</title>
+    <!-- truncated -->
+  </page>
+  <!-- more page elements here -->
+  </foo>
+  ```
+
+  Notice the "WPD" and the `namespace key="3000"` matching. What matters to us here is that you see `<title>WPD:...</title>`
+
+  Once you have the `wpd_full.xml` file imported in this repository `data/dumps/`, you can run the previously explained commands with the following options.
+
+  ```
+  app/console mediawiki:summary --xml-source=dumps/wpd_full.xml --namespace-prefix=WPD > reports/summary_wpd.yml
+  app/console mediawiki:run 1 --xml-source=dumps/wpd_full.xml --namespace-prefix=WPD > run_wpd.log
+  app/console mediawiki:run 2 --xml-source=dumps/wpd_full.xml --namespace-prefix=WPD >> run_wpd.log
+  app/console mediawiki:run 3 --xml-source=dumps/wpd_full.xml --namespace-prefix=WPD >> run_wpd.log
+  ```
+
+  The difference will be that instead of creating a file as `out/content/WPD/Wishlist/index.md`, it would create them as `out/Wishlist/index.md` so we can
+  use that new `out/` git repository as a git submodule from the main content repository.
 
 
 ---

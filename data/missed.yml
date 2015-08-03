@@ -1,0 +1,12 @@
+# 3rd pass missed entries to retry
+#
+# To use, use --missed argument (e.g. `app/console mediawiki:run 3 --missed`)
+#
+# Each entry is relative to the out/ or out/content directory, if you are importing from
+# a namespace content, make sure you add the namespace prefix too.
+#
+missed:
+  - WPD/Wishlist
+  - WPD/Stewardship_Committee_Charter
+  - html/attributes/href_base
+  - apis/xhr/methods/open_XDomainRequest

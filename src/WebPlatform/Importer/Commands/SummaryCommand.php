@@ -56,9 +56,10 @@ DESCR;
                     new InputOption('xml-source', '', InputOption::VALUE_OPTIONAL, 'What file to read from. Argument is relative from data/ folder from this directory (e.g. foo.xml in data/foo.xml)', 'dumps/main_full.xml'),
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per document ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of documents', 0),
+                    new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run a 3rd pass only for them'),
+                    new InputOption('namespace-prefix', '', InputOption::VALUE_OPTIONAL, 'If not against main MediaWiki namespace, set prefix (e.g. Meta) so we can create a git repo with all contents on root so that we can use export as a submodule.', false),
                     new InputOption('display-author', '', InputOption::VALUE_NONE, 'Display or not the author and email address (useful to hide info for public reports), defaults to false'),
                     new InputOption('indexes', '', InputOption::VALUE_NONE, 'Whether or not we display loop indexes'),
-                    new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run a 3rd pass only for them'),
                 ]
             );
     }
@@ -76,6 +77,7 @@ DESCR;
         $maxHops = (int) $input->getOption('max-pages');    // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
         $listMissed = $input->getOption('missed');
+        $namespacePrefix = $input->getOption('namespace-prefix');
 
         $counter = 0;    // Increment the number of pages we are going through
         $redirects = [];
@@ -149,11 +151,29 @@ DESCR;
             $pageNode = new SimpleXMLElement($node);
             if (isset($pageNode->title)) {
                 $wikiDocument = new MediaWikiDocument($pageNode);
-                $persistable = new GitCommitFileRevision($wikiDocument, 'out/content/', '.md');
+                //
+                // While importing WPD, Meta and Users namespaces, we were writing into 'out/' directly!
+                //
+                // If you want to migrate content from multiple MediaWiki namespaces and convert into a static
+                // site generator, you may want to keep separation and have a separate git repository per namespace.
+                //
+                // The reason you would do this is that other namespaces than the main may have content that isn’t
+                // the main reason of existence of the site and it would "pollute" the main content new git repository
+                // this will create.
+                //
+                // The main namespace would store file in a child folder (e.g. content/) so that we can add other assets
+                // in that repository such as code for a static site generator, templates, etc.
+                //
+                // But, for alternate content, we want them to be submodules and therefore need them to be at the root
+                // of the directory as if they were part of the content, but yet in their own repositories.
+                //
+                $writeTo = ($namespacePrefix === false) ? 'out/content/' : 'out/';
+                $persistable = new GitCommitFileRevision($wikiDocument, $writeTo, '.md');
 
                 $title = $wikiDocument->getTitle();
                 $normalized_location = $wikiDocument->getName();
                 $file_path = $this->titleFilter->filter($persistable->getName());
+                $file_path = ($namespacePrefix === false) ? $file_path : str_replace(sprintf('%s/', $namespacePrefix), '', $file_path);
                 $redirect_to = $this->titleFilter->filter($wikiDocument->getRedirect()); // False if not a redirect, string if it is
 
                 $is_translation = $wikiDocument->isTranslation();
@@ -385,7 +405,11 @@ DESCR;
         $prepare_nginx_redirects = array_merge($sanity_redirs, $redirects);
         foreach ($prepare_nginx_redirects as $url => $redirect_to) {
             // NGINX Case-insensitive redirect? Its done through (?i)! Should be documented!!!
-            $nginx_redirects[] = sprintf('rewrite (?i)^/wiki/%s$ /%s permanent;', str_replace(array_keys($nginx_esc), $nginx_esc, $url), $redirect_to);
+            //$nginx_redirects[] = sprintf('rewrite (?i)^/wiki/%s$ /%s permanent;', str_replace(array_keys($nginx_esc), $nginx_esc, $url), $redirect_to);
+            $new_location = str_replace(array_keys($nginx_esc), $nginx_esc, $url);
+            if (str_replace(['\\:', 'wiki/'], ['/', ''], $new_location) !== $redirect_to) {
+                $nginx_redirects[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, str_replace('\\:', '/', $redirect_to));
+            }
         }
         $this->filesystem->dumpFile('reports/nginx_redirects.map', implode(PHP_EOL, $nginx_redirects));
 
