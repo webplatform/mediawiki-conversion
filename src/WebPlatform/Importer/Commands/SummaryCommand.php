@@ -395,6 +395,7 @@ DESCR;
         ksort($sanity_redirs, SORT_NATURAL|SORT_FLAG_CASE);
 
         $nginx_redirects = [];
+        $nginx_almost_same = [];
 
         $nginx_esc[':'] = '\\:';
         $nginx_esc['('] = '\\(';
@@ -407,11 +408,14 @@ DESCR;
             // NGINX Case-insensitive redirect? Its done through (?i)! Should be documented!!!
             //$nginx_redirects[] = sprintf('rewrite (?i)^/wiki/%s$ /%s permanent;', str_replace(array_keys($nginx_esc), $nginx_esc, $url), $redirect_to);
             $new_location = str_replace(array_keys($nginx_esc), $nginx_esc, $url);
-            if (str_replace(['\\:', 'wiki/'], ['/', ''], $new_location) !== $redirect_to) {
-                $nginx_redirects[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, str_replace('\\:', '/', $redirect_to));
+            if (str_replace(['(\\ |_)'], ['_'], $new_location) !== $redirect_to) {
+                $nginx_redirects[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, $redirect_to);
+            } else {
+                $nginx_almost_same[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, $redirect_to);
             }
         }
         $this->filesystem->dumpFile('reports/nginx_redirects.map', implode(PHP_EOL, $nginx_redirects));
+        $this->filesystem->dumpFile('reports/nginx_almost_same.map', implode(PHP_EOL, $nginx_almost_same));
 
         $sanity_redirects_out = array('URLs to return new Location (from => to):');
         foreach ($sanity_redirs as $title => $sanitized) {
