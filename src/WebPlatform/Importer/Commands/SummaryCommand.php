@@ -53,6 +53,7 @@ DESCR;
             ->setDescription($description)
             ->setDefinition(
                 [
+                    new InputOption('xml-source', '', InputOption::VALUE_OPTIONAL, 'What file to read from. Argument is relative from data/ folder from this directory (e.g. foo.xml in data/foo.xml)', 'dumps/main_full.xml'),
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per document ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of documents', 0),
                     new InputOption('display-author', '', InputOption::VALUE_NONE, 'Display or not the author and email address (useful to hide info for public reports), defaults to false'),
@@ -71,6 +72,7 @@ DESCR;
         $displayIndex = $input->getOption('indexes');
         $displayAuthor = $input->getOption('display-author');
 
+        $xmlSource = $input->getOption('xml-source');
         $maxHops = (int) $input->getOption('max-pages');    // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
         $listMissed = $input->getOption('missed');
@@ -113,13 +115,6 @@ DESCR;
             $this->missed = $missed['missed'];
         }
 
-        /**
-         * Last minute redirects. Order matters.
-         */
-        $redirects['after'] = 'css/selectors/pseudo-elements/after';
-        $redirects['tutorials/What_is_CSS'] = 'tutorials/learning_what_css_is';
-        $redirects['html/attributes/type type (a, link, embed)'] = 'html/attributes/type';
-
         /* -------------------- Author --------------------
          *
          * Author array of MediaWikiContributor objects with $this->users[$uid],
@@ -139,7 +134,10 @@ DESCR;
         /* -------------------- /Author -------------------- **/
 
         /* -------------------- XML source -------------------- **/
-        $file = DATA_DIR.'/dumps/main_full.xml';
+        $file = realpath(DATA_DIR.'/'.$xmlSource);
+        if ($file === false) {
+            throw new Exception(sprintf('Cannot run script, source XML file ./data/%s could not be found', $xmlSource));
+        }
         $streamer = XmlStringStreamer::createStringWalkerParser($file);
         /* -------------------- /XML source -------------------- **/
 
@@ -377,14 +375,6 @@ DESCR;
         ksort($sanity_redirs, SORT_NATURAL|SORT_FLAG_CASE);
 
         $nginx_redirects = [];
-        $nginx_redirects[] = 'rewrite ^/wiki/((Special|Template|User).*) /disabled?r=$1 permanent;';
-        $nginx_redirects[] = 'rewrite ^/w/(.*) /disabled?r=$1 permanent;';
-        $nginx_redirects[] = 'rewrite ^/$ /Main_Page permanent;';
-        $nginx_redirects[] = 'rewrite ^/wiki/?$ /Main_Page permanent;';
-        //                             /wiki/tutorials/canvas/canvas_tutorial
-        //$nginx_redirects[] = 'rewrite ^/wiki/canvas/tutorial(.*)$ /wiki/tutorials/canvas$1 permanent;';
-        $nginx_redirects[] = 'rewrite ^/wiki/WPD\:Community$ /community permanent;';
-        $nginx_redirects[] = 'rewrite ^/wiki/WPD\:Contributors_Guide$ /contribute permanent;';
 
         $nginx_esc[':'] = '\\:';
         $nginx_esc['('] = '\\(';
@@ -397,7 +387,6 @@ DESCR;
             // NGINX Case-insensitive redirect? Its done through (?i)! Should be documented!!!
             $nginx_redirects[] = sprintf('rewrite (?i)^/wiki/%s$ /%s permanent;', str_replace(array_keys($nginx_esc), $nginx_esc, $url), $redirect_to);
         }
-        $nginx_redirects[] = 'rewrite ^/wiki/(.*) /$1 permanent;'; // Has to be the last!
         $this->filesystem->dumpFile('reports/nginx_redirects.map', implode(PHP_EOL, $nginx_redirects));
 
         $sanity_redirects_out = array('URLs to return new Location (from => to):');

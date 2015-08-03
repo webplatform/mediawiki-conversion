@@ -8,16 +8,16 @@
 
 // set to run indefinitely if needed
 set_time_limit(0);
-ini_set('memory_limit', '3024M');
+ini_set('memory_limit', '4024M');
 
 /* Optional. It’s better to do it in the php.ini file */
 date_default_timezone_set('America/Montreal');
 
 $_SERVER['REMOTE_ADDR']='127.0.0.1';
-$_SERVER['REMOTE_FOO']='bar';
 
-define('MEDIAWIKI_API_ORIGIN', 'https://docs.webplatform.org');
-define('COMMITER_ANONYMOUS_DOMAIN', 'docs.webplatform.org');
+// Set to your own, or use https://github.com/wikimedia/mediawiki-vagrant
+define('MEDIAWIKI_API_ORIGIN', 'http://127.0.0.1:8080');
+define('COMMITER_ANONYMOUS_DOMAIN', 'example.org');
 
 $wd = realpath(__DIR__ . '/..');
 define('DATA_DIR', $wd.'/data');

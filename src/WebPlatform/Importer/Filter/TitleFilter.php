@@ -141,6 +141,7 @@ class TitleFilter extends AbstractFilter
         //$words[] = 'url';                       // X
         //$words[] = 'websocket';                 // X
         $words[] = 'What_does_a_good_web_page_need';
+        $words[] = 'Translations';
 
         // Ones that are common in an URL but yet, in this
         // precise context, had casing discrepancies.

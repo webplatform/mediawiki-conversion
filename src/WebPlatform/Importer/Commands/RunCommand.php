@@ -83,6 +83,7 @@ DESCR;
             ->setDefinition(
                 [
                     new InputArgument('pass', InputArgument::REQUIRED, 'The pass number: 1,2,3', null),
+                    new InputOption('xml-source', '', InputOption::VALUE_OPTIONAL, 'What file to read from. Argument is relative from data/ folder from this directory (e.g. foo.xml in data/foo.xml)', 'dumps/main_full.xml'),
                     new InputOption('resume-at', '', InputOption::VALUE_OPTIONAL, 'Resume run at a specific XML document index number ', 0),
                     new InputOption('retry', '', InputOption::VALUE_OPTIONAL, 'List of indexes you want to query again', null),
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per page ', 0),
@@ -103,6 +104,7 @@ DESCR;
         $retries = explode(',', $input->getOption('retry'));
         $resumeAt = (int) $input->getOption('resume-at');
 
+        $xmlSource = $input->getOption('xml-source');
         $maxHops = (int) $input->getOption('max-pages');   // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
         $listMissed = $input->getOption('missed');
@@ -181,7 +183,10 @@ DESCR;
         /* -------------------- /Author -------------------- **/
 
         /* -------------------- XML source -------------------- **/
-        $file = DATA_DIR.'/dumps/main_full.xml';
+        $file = realpath(DATA_DIR.'/'.$xmlSource);
+        if ($file === false) {
+            throw new Exception(sprintf('Cannot run script, source XML file ./data/%s could not be found', $xmlSource));
+        }
         $streamer = XmlStringStreamer::createStringWalkerParser($file);
         /* -------------------- /XML source -------------------- **/
 
