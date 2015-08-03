@@ -394,8 +394,10 @@ DESCR;
         ksort($redirects, SORT_NATURAL|SORT_FLAG_CASE);
         ksort($sanity_redirs, SORT_NATURAL|SORT_FLAG_CASE);
 
-        $nginx_redirects = [];
         $nginx_almost_same = [];
+        $nginx_almost_same_casing = [];
+        $nginx_redirects_spaces = [];
+        $nginx_redirects = [];
 
         $nginx_esc['Meta:'] = 'Meta/';
         $nginx_esc['WPD:'] = 'WPD/';
