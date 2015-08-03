@@ -397,31 +397,61 @@ DESCR;
         $nginx_redirects = [];
         $nginx_almost_same = [];
 
+        $nginx_esc['Meta:'] = 'Meta/';
+        $nginx_esc['WPD:'] = 'WPD/';
         $nginx_esc[':'] = '\\:';
         $nginx_esc['('] = '\\(';
         $nginx_esc[')'] = '\\)';
-        $nginx_esc[','] = '\\,';
+        $nginx_esc['?'] = '\\?)';
         $nginx_esc[' '] = '(\ |_)'; // Ordering matter, otherwise the () will be escaped and we want them here!
+
+        $rewriteCheck[' '] = '(\ |_)'; // Ordering matter, otherwise the () will be escaped and we want them here!
+
+        $location_spaghetti = [];
+        $location_spaghetti_duplicated = [];
+        $hopefully_not_duplicate = [];
 
         $prepare_nginx_redirects = array_merge($sanity_redirs, $redirects);
         foreach ($prepare_nginx_redirects as $url => $redirect_to) {
             // NGINX Case-insensitive redirect? Its done through (?i)! Should be documented!!!
-            //$nginx_redirects[] = sprintf('rewrite (?i)^/wiki/%s$ /%s permanent;', str_replace(array_keys($nginx_esc), $nginx_esc, $url), $redirect_to);
             $new_location = str_replace(array_keys($nginx_esc), $nginx_esc, $url);
-            if (str_replace(['(\\ |_)'], ['_'], $new_location) !== $redirect_to) {
-                $nginx_redirects[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, $redirect_to);
-            } else {
-                $nginx_almost_same[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, $redirect_to);
-            }
-        }
-        $this->filesystem->dumpFile('reports/nginx_redirects.map', implode(PHP_EOL, $nginx_redirects));
-        $this->filesystem->dumpFile('reports/nginx_almost_same.map', implode(PHP_EOL, $nginx_almost_same));
+            $url_match_attempt = str_replace('(\ |_)', '_', $new_location);
+            $work_item = $url . ':'.PHP_EOL.'  - new_location: "' . $new_location . '"'.PHP_EOL.'  - url_match_attempt: "' . $url_match_attempt . '"'.PHP_EOL.'  - redirect_to: "'. $redirect_to .'"'.PHP_EOL;
+            $duplicate = false;
 
-        $sanity_redirects_out = array('URLs to return new Location (from => to):');
-        foreach ($sanity_redirs as $title => $sanitized) {
-            $sanity_redirects_out[] = sprintf(' - "%s": "%s"', $title, $sanitized);
+            if (array_key_exists(strtolower($url), $hopefully_not_duplicate)) {
+                $location_spaghetti_duplicated[strtolower($url)] = $work_item;
+                $duplicate = true;
+            } else {
+                $hopefully_not_duplicate[strtolower($url)] = $work_item;
+            }
+            $location_spaghetti[] = $work_item;
+
+            if ($duplicate === true) {
+                $nginx_almost_same[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, $redirect_to);
+            } elseif ($url_match_attempt === $redirect_to) {
+                $nginx_almost_same[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, $redirect_to);
+            } elseif (strtolower($url_match_attempt) === strtolower($redirect_to)) {
+                $nginx_almost_same_casing[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, $redirect_to);
+            } elseif (stripos($url, ' ') > 1) {
+                $nginx_redirects_spaces[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, $redirect_to);
+            } else {
+                $nginx_redirects[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, $redirect_to);
+            }
+
         }
-        $this->filesystem->dumpFile('reports/sanity_redirects.txt', implode(PHP_EOL, $sanity_redirects_out));
+        $this->filesystem->dumpFile('reports/location_spaghetti_duplicated.txt', implode(PHP_EOL, $location_spaghetti_duplicated));
+        $this->filesystem->dumpFile('reports/location_spaghetti.txt', implode(PHP_EOL, $location_spaghetti));
+        $this->filesystem->dumpFile('reports/4_nginx_redirects_spaces.map', implode(PHP_EOL, $nginx_redirects_spaces));
+        $this->filesystem->dumpFile('reports/3_nginx_almost_same.map', implode(PHP_EOL, $nginx_almost_same));
+        $this->filesystem->dumpFile('reports/2_nginx_almost_same_casing.map', implode(PHP_EOL, $nginx_almost_same_casing));
+        $this->filesystem->dumpFile('reports/1_nginx.map', implode(PHP_EOL, $nginx_redirects));
+
+        $redirects_sanity_out = array('URLs to return new Location (from => to):');
+        foreach ($sanity_redirs as $title => $sanitized) {
+            $redirects_sanity_out[] = sprintf(' - "%s": "%s"', $title, $sanitized);
+        }
+        $this->filesystem->dumpFile('reports/redirects_sanity.txt', implode(PHP_EOL, $redirects_sanity_out));
 
         $redirects_out = array('Redirects (from => to):');
         foreach ($redirects as $url => $redirect_to) {

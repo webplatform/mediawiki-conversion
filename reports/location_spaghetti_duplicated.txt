@@ -1,0 +1,409 @@
+CSS/Selectors/pseudo-classes/:target:
+  - new_location: "CSS/Selectors/pseudo-classes/\:target"
+  - url_match_attempt: "CSS/Selectors/pseudo-classes/\:target"
+  - redirect_to: "CSS/Selectors/pseudo-classes/target"
+
+beginners/crash course:
+  - new_location: "beginners/crash(\ |_)course"
+  - url_match_attempt: "beginners/crash_course"
+  - redirect_to: "Beginners/crash_course"
+
+beginners/the beginning:
+  - new_location: "beginners/the(\ |_)beginning"
+  - url_match_attempt: "beginners/the_beginning"
+  - redirect_to: "Beginners/the_beginning"
+
+concepts/Color theory:
+  - new_location: "concepts/Color(\ |_)theory"
+  - url_match_attempt: "concepts/Color_theory"
+  - redirect_to: "concepts/color_theory"
+
+concepts/Design theory:
+  - new_location: "concepts/Design(\ |_)theory"
+  - url_match_attempt: "concepts/Design_theory"
+  - redirect_to: "concepts/design_theory"
+
+concepts/Information architecture:
+  - new_location: "concepts/Information(\ |_)architecture"
+  - url_match_attempt: "concepts/Information_architecture"
+  - redirect_to: "concepts/information_architecture"
+
+concepts/internet and web:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web"
+  - url_match_attempt: "concepts/internet_and_web"
+  - redirect_to: "concepts/Internet_and_Web"
+
+concepts/internet and web/About HTML5 hybrid applications:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/About(\ |_)HTML5(\ |_)hybrid(\ |_)applications"
+  - url_match_attempt: "concepts/internet_and_web/About_HTML5_hybrid_applications"
+  - redirect_to: "concepts/Internet_and_Web/About_HTML5_hybrid_applications"
+
+concepts/Internet and Web/About proxy based browsers:
+  - new_location: "concepts/Internet(\ |_)and(\ |_)Web/About(\ |_)proxy(\ |_)based(\ |_)browsers"
+  - url_match_attempt: "concepts/Internet_and_Web/About_proxy_based_browsers"
+  - redirect_to: "concepts/Internet_and_Web/proxy_based_browsers"
+
+concepts/internet and web/how browsers work:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/how(\ |_)browsers(\ |_)work"
+  - url_match_attempt: "concepts/internet_and_web/how_browsers_work"
+  - redirect_to: "concepts/Internet_and_Web/how_browsers_work"
+
+concepts/internet and web/How does the Internet Work:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/How(\ |_)does(\ |_)the(\ |_)Internet(\ |_)Work"
+  - url_match_attempt: "concepts/internet_and_web/How_does_the_Internet_Work"
+  - redirect_to: "concepts/Internet_and_Web/How_does_the_Internet_Work"
+
+concepts/internet and web/how does the internet work/es:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/how(\ |_)does(\ |_)the(\ |_)internet(\ |_)work/es"
+  - url_match_attempt: "concepts/internet_and_web/how_does_the_internet_work/es"
+  - redirect_to: "concepts/Internet_and_Web/How_does_the_Internet_Work/es"
+
+concepts/internet and web/how does the internet work/ja:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/how(\ |_)does(\ |_)the(\ |_)internet(\ |_)work/ja"
+  - url_match_attempt: "concepts/internet_and_web/how_does_the_internet_work/ja"
+  - redirect_to: "concepts/Internet_and_Web/How_does_the_Internet_Work/ja"
+
+concepts/internet and web/html5 hybrid applications:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/html5(\ |_)hybrid(\ |_)applications"
+  - url_match_attempt: "concepts/internet_and_web/html5_hybrid_applications"
+  - redirect_to: "concepts/Internet_and_Web/html5_hybrid_applications"
+
+concepts/internet and web/html5 hybrid applications/concepts/mobile tools:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/html5(\ |_)hybrid(\ |_)applications/concepts/mobile(\ |_)tools"
+  - url_match_attempt: "concepts/internet_and_web/html5_hybrid_applications/concepts/mobile_tools"
+  - redirect_to: "concepts/Internet_and_Web/html5_hybrid_applications/concepts/mobile_tools"
+
+concepts/internet and web/mime types:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/mime(\ |_)types"
+  - url_match_attempt: "concepts/internet_and_web/mime_types"
+  - redirect_to: "concepts/Internet_and_Web/mime_types"
+
+concepts/internet and web/OAuth:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/OAuth"
+  - url_match_attempt: "concepts/internet_and_web/OAuth"
+  - redirect_to: "concepts/Internet_and_Web/OAuth"
+
+concepts/internet and web/proxy based browsers:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/proxy(\ |_)based(\ |_)browsers"
+  - url_match_attempt: "concepts/internet_and_web/proxy_based_browsers"
+  - redirect_to: "concepts/Internet_and_Web/proxy_based_browsers"
+
+concepts/internet and web/The History of the Web:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/The(\ |_)History(\ |_)of(\ |_)the(\ |_)Web"
+  - url_match_attempt: "concepts/internet_and_web/The_History_of_the_Web"
+  - redirect_to: "concepts/Internet_and_Web/The_History_of_the_Web"
+
+concepts/internet and web/the history of the web/es:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/the(\ |_)history(\ |_)of(\ |_)the(\ |_)web/es"
+  - url_match_attempt: "concepts/internet_and_web/the_history_of_the_web/es"
+  - redirect_to: "concepts/Internet_and_Web/The_History_of_the_Web/es"
+
+concepts/internet and web/the history of the web/ja:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/the(\ |_)history(\ |_)of(\ |_)the(\ |_)web/ja"
+  - url_match_attempt: "concepts/internet_and_web/the_history_of_the_web/ja"
+  - redirect_to: "concepts/Internet_and_Web/The_History_of_the_Web/ja"
+
+concepts/internet and web/the history of the web/tr:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/the(\ |_)history(\ |_)of(\ |_)the(\ |_)web/tr"
+  - url_match_attempt: "concepts/internet_and_web/the_history_of_the_web/tr"
+  - redirect_to: "concepts/Internet_and_Web/The_History_of_the_Web/tr"
+
+concepts/internet and web/the web standards model:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/the(\ |_)web(\ |_)standards(\ |_)model"
+  - url_match_attempt: "concepts/internet_and_web/the_web_standards_model"
+  - redirect_to: "concepts/Internet_and_Web/the_web_standards_model"
+
+concepts/internet and web/The Web Standards Model/ja:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/The(\ |_)Web(\ |_)Standards(\ |_)Model/ja"
+  - url_match_attempt: "concepts/internet_and_web/The_Web_Standards_Model/ja"
+  - redirect_to: "concepts/Internet_and_Web/The_Web_Standards_Model/ja"
+
+concepts/internet and web/webrtc:
+  - new_location: "concepts/internet(\ |_)and(\ |_)web/webrtc"
+  - url_match_attempt: "concepts/internet_and_web/webrtc"
+  - redirect_to: "concepts/Internet_and_Web/webrtc"
+
+concepts/programming/Programming basics:
+  - new_location: "concepts/programming/Programming(\ |_)basics"
+  - url_match_attempt: "concepts/programming/Programming_basics"
+  - redirect_to: "concepts/programming/programming_basics"
+
+concepts/programming/The principles of unobtrusive JavaScript:
+  - new_location: "concepts/programming/The(\ |_)principles(\ |_)of(\ |_)unobtrusive(\ |_)JavaScript"
+  - url_match_attempt: "concepts/programming/The_principles_of_unobtrusive_JavaScript"
+  - redirect_to: "concepts/programming/the_principles_of_unobtrusive_javascript"
+
+concepts/programming/The purpose of JavaScript:
+  - new_location: "concepts/programming/The(\ |_)purpose(\ |_)of(\ |_)JavaScript"
+  - url_match_attempt: "concepts/programming/The_purpose_of_JavaScript"
+  - redirect_to: "concepts/programming/the_purpose_of_javascript"
+
+concepts/programming/Variables in JavaScript:
+  - new_location: "concepts/programming/Variables(\ |_)in(\ |_)JavaScript"
+  - url_match_attempt: "concepts/programming/Variables_in_JavaScript"
+  - redirect_to: "concepts/programming/variables_in_javascript"
+
+concepts/Web typography:
+  - new_location: "concepts/Web(\ |_)typography"
+  - url_match_attempt: "concepts/Web_typography"
+  - redirect_to: "concepts/web_typography"
+
+concepts/Wireframing a site:
+  - new_location: "concepts/Wireframing(\ |_)a(\ |_)site"
+  - url_match_attempt: "concepts/Wireframing_a_site"
+  - redirect_to: "concepts/wireframing_a_site"
+
+tutorials/Absolute and fixed positioning:
+  - new_location: "tutorials/Absolute(\ |_)and(\ |_)fixed(\ |_)positioning"
+  - url_match_attempt: "tutorials/Absolute_and_fixed_positioning"
+  - redirect_to: "tutorials/absolute_and_fixed_positioning"
+
+tutorials/Animation in JavaScript:
+  - new_location: "tutorials/Animation(\ |_)in(\ |_)JavaScript"
+  - url_match_attempt: "tutorials/Animation_in_JavaScript"
+  - redirect_to: "tutorials/animation_in_javascript"
+
+tutorials/Animations in SVG:
+  - new_location: "tutorials/Animations(\ |_)in(\ |_)SVG"
+  - url_match_attempt: "tutorials/Animations_in_SVG"
+  - redirect_to: "tutorials/animations_in_svg"
+
+tutorials/Audio and video:
+  - new_location: "tutorials/Audio(\ |_)and(\ |_)video"
+  - url_match_attempt: "tutorials/Audio_and_video"
+  - redirect_to: "tutorials/audio_and_video"
+
+tutorials/Basic shapes:
+  - new_location: "tutorials/Basic(\ |_)shapes"
+  - url_match_attempt: "tutorials/Basic_shapes"
+  - redirect_to: "tutorials/basic_shapes"
+
+tutorials/Box model:
+  - new_location: "tutorials/Box(\ |_)model"
+  - url_match_attempt: "tutorials/Box_model"
+  - redirect_to: "tutorials/box_model"
+
+tutorials/Building SVG paths:
+  - new_location: "tutorials/Building(\ |_)SVG(\ |_)paths"
+  - url_match_attempt: "tutorials/Building_SVG_paths"
+  - redirect_to: "tutorials/building_svg_paths"
+
+tutorials/Building web apps:
+  - new_location: "tutorials/Building(\ |_)web(\ |_)apps"
+  - url_match_attempt: "tutorials/Building_web_apps"
+  - redirect_to: "tutorials/building_web_apps"
+
+tutorials/Building web games:
+  - new_location: "tutorials/Building(\ |_)web(\ |_)games"
+  - url_match_attempt: "tutorials/Building_web_games"
+  - redirect_to: "tutorials/building_web_games"
+
+tutorials/Creating and modifying HTML:
+  - new_location: "tutorials/Creating(\ |_)and(\ |_)modifying(\ |_)HTML"
+  - url_match_attempt: "tutorials/Creating_and_modifying_HTML"
+  - redirect_to: "tutorials/creating_and_modifying_html"
+
+tutorials/Creating basic navigation menus:
+  - new_location: "tutorials/Creating(\ |_)basic(\ |_)navigation(\ |_)menus"
+  - url_match_attempt: "tutorials/Creating_basic_navigation_menus"
+  - redirect_to: "tutorials/creating_basic_navigation_menus"
+
+tutorials/CSS text quick start:
+  - new_location: "tutorials/CSS(\ |_)text(\ |_)quick(\ |_)start"
+  - url_match_attempt: "tutorials/CSS_text_quick_start"
+  - redirect_to: "tutorials/css_text_quick_start"
+
+tutorials/Debugging CSS:
+  - new_location: "tutorials/Debugging(\ |_)CSS"
+  - url_match_attempt: "tutorials/Debugging_CSS"
+  - redirect_to: "tutorials/debugging_css"
+
+tutorials/Events in JavaScript:
+  - new_location: "tutorials/Events(\ |_)in(\ |_)JavaScript"
+  - url_match_attempt: "tutorials/Events_in_JavaScript"
+  - redirect_to: "tutorials/events_in_javascript"
+
+tutorials/External content in SVG:
+  - new_location: "tutorials/External(\ |_)content(\ |_)in(\ |_)SVG"
+  - url_match_attempt: "tutorials/External_content_in_SVG"
+  - redirect_to: "tutorials/external_content_in_svg"
+
+tutorials/Fills and strokes in SVG:
+  - new_location: "tutorials/Fills(\ |_)and(\ |_)strokes(\ |_)in(\ |_)SVG"
+  - url_match_attempt: "tutorials/Fills_and_strokes_in_SVG"
+  - redirect_to: "tutorials/fills_and_strokes_in_svg"
+
+tutorials/Floats and clearing:
+  - new_location: "tutorials/Floats(\ |_)and(\ |_)clearing"
+  - url_match_attempt: "tutorials/Floats_and_clearing"
+  - redirect_to: "tutorials/floats_and_clearing"
+
+tutorials/Generated content:
+  - new_location: "tutorials/Generated(\ |_)content"
+  - url_match_attempt: "tutorials/Generated_content"
+  - redirect_to: "tutorials/generated_content"
+
+tutorials/getting your content online:
+  - new_location: "tutorials/getting(\ |_)your(\ |_)content(\ |_)online"
+  - url_match_attempt: "tutorials/getting_your_content_online"
+  - redirect_to: "tutorials/Getting_Your_Content_Online"
+
+tutorials/Graceful degradation versus progressive enhancement:
+  - new_location: "tutorials/Graceful(\ |_)degradation(\ |_)versus(\ |_)progressive(\ |_)enhancement"
+  - url_match_attempt: "tutorials/Graceful_degradation_versus_progressive_enhancement"
+  - redirect_to: "tutorials/graceful_degradation_versus_progressive_enhancement"
+
+tutorials/JavaScript best practices:
+  - new_location: "tutorials/JavaScript(\ |_)best(\ |_)practices"
+  - url_match_attempt: "tutorials/JavaScript_best_practices"
+  - redirect_to: "tutorials/javascript_best_practices"
+
+tutorials/JavaScript for mobile/Best practices when writing for mobile:
+  - new_location: "tutorials/JavaScript(\ |_)for(\ |_)mobile/Best(\ |_)practices(\ |_)when(\ |_)writing(\ |_)for(\ |_)mobile"
+  - url_match_attempt: "tutorials/JavaScript_for_mobile/Best_practices_when_writing_for_mobile"
+  - redirect_to: "tutorials/JavaScript_for_mobile/best_practices_when_writing_for_mobile"
+
+tutorials/JavaScript functions:
+  - new_location: "tutorials/JavaScript(\ |_)functions"
+  - url_match_attempt: "tutorials/JavaScript_functions"
+  - redirect_to: "tutorials/javascript_functions"
+
+tutorials/Layout fundamentals:
+  - new_location: "tutorials/Layout(\ |_)fundamentals"
+  - url_match_attempt: "tutorials/Layout_fundamentals"
+  - redirect_to: "tutorials/layout_fundamentals"
+
+tutorials/Making CSS easier to read:
+  - new_location: "tutorials/Making(\ |_)CSS(\ |_)easier(\ |_)to(\ |_)read"
+  - url_match_attempt: "tutorials/Making_CSS_easier_to_read"
+  - redirect_to: "tutorials/making_css_easier_to_read"
+
+tutorials/Manipulating CSS with JavaScript:
+  - new_location: "tutorials/Manipulating(\ |_)CSS(\ |_)with(\ |_)JavaScript"
+  - url_match_attempt: "tutorials/Manipulating_CSS_with_JavaScript"
+  - redirect_to: "tutorials/manipulating_css_with_javascript"
+
+tutorials/Media queries:
+  - new_location: "tutorials/Media(\ |_)queries"
+  - url_match_attempt: "tutorials/Media_queries"
+  - redirect_to: "tutorials/media_queries"
+
+tutorials/Objects in JavaScript:
+  - new_location: "tutorials/Objects(\ |_)in(\ |_)JavaScript"
+  - url_match_attempt: "tutorials/Objects_in_JavaScript"
+  - redirect_to: "tutorials/objects_in_javascript"
+
+tutorials/Optimizing CSS:
+  - new_location: "tutorials/Optimizing(\ |_)CSS"
+  - url_match_attempt: "tutorials/Optimizing_CSS"
+  - redirect_to: "tutorials/optimizing_css"
+
+tutorials/Position and transformation:
+  - new_location: "tutorials/Position(\ |_)and(\ |_)transformation"
+  - url_match_attempt: "tutorials/Position_and_transformation"
+  - redirect_to: "tutorials/position_and_transformation"
+
+tutorials/Responsive layouts:
+  - new_location: "tutorials/Responsive(\ |_)layouts"
+  - url_match_attempt: "tutorials/Responsive_layouts"
+  - redirect_to: "tutorials/responsive_layouts"
+
+tutorials/Scripting SVG:
+  - new_location: "tutorials/Scripting(\ |_)SVG"
+  - url_match_attempt: "tutorials/Scripting_SVG"
+  - redirect_to: "tutorials/scripting_svg"
+
+tutorials/State in CSS:
+  - new_location: "tutorials/State(\ |_)in(\ |_)CSS"
+  - url_match_attempt: "tutorials/State_in_CSS"
+  - redirect_to: "tutorials/state_in_css"
+
+tutorials/Static and relative positioning:
+  - new_location: "tutorials/Static(\ |_)and(\ |_)relative(\ |_)positioning"
+  - url_match_attempt: "tutorials/Static_and_relative_positioning"
+  - redirect_to: "tutorials/static_and_relative_positioning"
+
+tutorials/Styling lists and links:
+  - new_location: "tutorials/Styling(\ |_)lists(\ |_)and(\ |_)links"
+  - url_match_attempt: "tutorials/Styling_lists_and_links"
+  - redirect_to: "tutorials/styling_lists_and_links"
+
+tutorials/Styling SVG with CSS:
+  - new_location: "tutorials/Styling(\ |_)SVG(\ |_)with(\ |_)CSS"
+  - url_match_attempt: "tutorials/Styling_SVG_with_CSS"
+  - redirect_to: "tutorials/styling_svg_with_css"
+
+tutorials/SVG clipping and masking:
+  - new_location: "tutorials/SVG(\ |_)clipping(\ |_)and(\ |_)masking"
+  - url_match_attempt: "tutorials/SVG_clipping_and_masking"
+  - redirect_to: "tutorials/svg_clipping_and_masking"
+
+tutorials/SVG filters:
+  - new_location: "tutorials/SVG(\ |_)filters"
+  - url_match_attempt: "tutorials/SVG_filters"
+  - redirect_to: "tutorials/svg_filters"
+
+tutorials/SVG fonts:
+  - new_location: "tutorials/SVG(\ |_)fonts"
+  - url_match_attempt: "tutorials/SVG_fonts"
+  - redirect_to: "tutorials/svg_fonts"
+
+tutorials/SVG gradients:
+  - new_location: "tutorials/SVG(\ |_)gradients"
+  - url_match_attempt: "tutorials/SVG_gradients"
+  - redirect_to: "tutorials/svg_gradients"
+
+tutorials/SVG image element:
+  - new_location: "tutorials/SVG(\ |_)image(\ |_)element"
+  - url_match_attempt: "tutorials/SVG_image_element"
+  - redirect_to: "tutorials/svg_image_element"
+
+tutorials/SVG introduction:
+  - new_location: "tutorials/SVG(\ |_)introduction"
+  - url_match_attempt: "tutorials/SVG_introduction"
+  - redirect_to: "tutorials/svg_introduction"
+
+tutorials/SVG links:
+  - new_location: "tutorials/SVG(\ |_)links"
+  - url_match_attempt: "tutorials/SVG_links"
+  - redirect_to: "tutorials/svg_links"
+
+tutorials/SVG pattern fills:
+  - new_location: "tutorials/SVG(\ |_)pattern(\ |_)fills"
+  - url_match_attempt: "tutorials/SVG_pattern_fills"
+  - redirect_to: "tutorials/svg_pattern_fills"
+
+tutorials/SVG syntax and deployment:
+  - new_location: "tutorials/SVG(\ |_)syntax(\ |_)and(\ |_)deployment"
+  - url_match_attempt: "tutorials/SVG_syntax_and_deployment"
+  - redirect_to: "tutorials/svg_syntax_and_deployment"
+
+tutorials/Table styling basics:
+  - new_location: "tutorials/Table(\ |_)styling(\ |_)basics"
+  - url_match_attempt: "tutorials/Table_styling_basics"
+  - redirect_to: "tutorials/table_styling_basics"
+
+tutorials/the basics of html:
+  - new_location: "tutorials/the(\ |_)basics(\ |_)of(\ |_)html"
+  - url_match_attempt: "tutorials/the_basics_of_html"
+  - redirect_to: "guides/the_basics_of_html"
+
+tutorials/Traversing the DOM:
+  - new_location: "tutorials/Traversing(\ |_)the(\ |_)DOM"
+  - url_match_attempt: "tutorials/Traversing_the_DOM"
+  - redirect_to: "tutorials/traversing_the_dom"
+
+tutorials/Using text in SVG:
+  - new_location: "tutorials/Using(\ |_)text(\ |_)in(\ |_)SVG"
+  - url_match_attempt: "tutorials/Using_text_in_SVG"
+  - redirect_to: "tutorials/using_text_in_svg"
+
+tutorials/Using Web Audio:
+  - new_location: "tutorials/Using(\ |_)Web(\ |_)Audio"
+  - url_match_attempt: "tutorials/Using_Web_Audio"
+  - redirect_to: "tutorials/using_web_audio"
+
+tutorials/Your first look at JavaScript:
+  - new_location: "tutorials/Your(\ |_)first(\ |_)look(\ |_)at(\ |_)JavaScript"
+  - url_match_attempt: "tutorials/Your_first_look_at_JavaScript"
+  - redirect_to: "tutorials/your_first_look_at_javascript"
