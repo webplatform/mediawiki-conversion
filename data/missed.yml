@@ -5,8 +5,12 @@
 # Each entry is relative to the out/ or out/content directory, if you are importing from
 # a namespace content, make sure you add the namespace prefix too.
 #
+# https://docs.webplatform.org/w/index.php?action=edit&title=WPD:Getting_Started/examples
+#
 missed:
-  - WPD/Wishlist
-  - WPD/Stewardship_Committee_Charter
-  - html/attributes/href_base
-  - apis/xhr/methods/open_XDomainRequest
+  - Meta/web_platform_wednesday/past_reports
+  - Meta/Editors_Guide/content
+  - Meta/Editors_Guide
+  - WPD/Community/Meetings/General/Earlier
+  - WPD/Community/Task_Force
+  - WPD/Getting_Started/examples

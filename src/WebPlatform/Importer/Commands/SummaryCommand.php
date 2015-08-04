@@ -394,7 +394,8 @@ DESCR;
         ksort($redirects, SORT_NATURAL|SORT_FLAG_CASE);
         ksort($sanity_redirs, SORT_NATURAL|SORT_FLAG_CASE);
 
-        $nginx_almost_same = [];
+        $nginx_almost_same_1 = ['# Most likely OK to ignore, but good enough to check if adresses here works'];
+        $nginx_almost_same_2 = ['# Most likely OK to ignore, but good enough to check if adresses here works'];
         $nginx_almost_same_casing = [];
         $nginx_redirects_spaces = [];
         $nginx_redirects = [];
@@ -430,22 +431,23 @@ DESCR;
             $location_spaghetti[] = $work_item;
 
             if ($duplicate === true) {
-                $nginx_almost_same[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, $redirect_to);
+                $nginx_almost_same_1[] = sprintf('rewrite (?i)^/%s$ /%s break;', $new_location, $redirect_to);
             } elseif ($url_match_attempt === $redirect_to) {
-                $nginx_almost_same[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, $redirect_to);
+                $nginx_almost_same_2[] = sprintf('rewrite (?i)^/%s$ /%s break;', $new_location, $redirect_to);
             } elseif (strtolower($url_match_attempt) === strtolower($redirect_to)) {
-                $nginx_almost_same_casing[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, $redirect_to);
+                $nginx_almost_same_casing[] = sprintf('rewrite (?i)^/%s$ /%s break;', $new_location, $redirect_to);
             } elseif (stripos($url, ' ') > 1) {
-                $nginx_redirects_spaces[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, $redirect_to);
+                $nginx_redirects_spaces[] = sprintf('rewrite (?i)^/%s$ /%s break;', $new_location, $redirect_to);
             } else {
-                $nginx_redirects[] = sprintf('rewrite (?i)^/%s$ /%s permanent;', $new_location, $redirect_to);
+                $nginx_redirects[] = sprintf('rewrite (?i)^/%s$ /%s break;', $new_location, $redirect_to);
             }
 
         }
         $this->filesystem->dumpFile('reports/location_spaghetti_duplicated.txt', implode(PHP_EOL, $location_spaghetti_duplicated));
         $this->filesystem->dumpFile('reports/location_spaghetti.txt', implode(PHP_EOL, $location_spaghetti));
         $this->filesystem->dumpFile('reports/4_nginx_redirects_spaces.map', implode(PHP_EOL, $nginx_redirects_spaces));
-        $this->filesystem->dumpFile('reports/3_nginx_almost_same.map', implode(PHP_EOL, $nginx_almost_same));
+        $this->filesystem->dumpFile('reports/3_nginx_almost_same_1.map', implode(PHP_EOL, $nginx_almost_same_1));
+        $this->filesystem->dumpFile('reports/3_nginx_almost_same_2.map', implode(PHP_EOL, $nginx_almost_same_2));
         $this->filesystem->dumpFile('reports/2_nginx_almost_same_casing.map', implode(PHP_EOL, $nginx_almost_same_casing));
         $this->filesystem->dumpFile('reports/1_nginx.map', implode(PHP_EOL, $nginx_redirects));
 
