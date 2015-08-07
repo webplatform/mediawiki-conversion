@@ -10,7 +10,7 @@
         "symfony/filesystem": "~2.7",
         "symfony/yaml": "^2.7",
         "bit3/git-php": "~1.0",
-        "webplatform/content-converter": "1.2"
+        "webplatform/content-converter": "~1.2"
     },
     "require-dev": {
         "doctrine/annotations": "~1.2",

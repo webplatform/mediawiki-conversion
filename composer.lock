@@ -4,26 +4,25 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "d513f0a5fb7bddb06b8be1280e68f9ba",
+    "hash": "83ade030792fbef20ef2ee53a78d552d",
     "packages": [
         {
             "name": "bit3/git-php",
-            "version": "1.1.0",
+            "version": "1.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/bit3/git-php.git",
-                "reference": "ac253d6bc85557c84f142b1058a8e4ac7afabe23"
+                "reference": "0bcd0373458d7d05ab5469138f156c5ec3db10dc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/bit3/git-php/zipball/ac253d6bc85557c84f142b1058a8e4ac7afabe23",
-                "reference": "ac253d6bc85557c84f142b1058a8e4ac7afabe23",
+                "url": "https://api.github.com/repos/bit3/git-php/zipball/0bcd0373458d7d05ab5469138f156c5ec3db10dc",
+                "reference": "0bcd0373458d7d05ab5469138f156c5ec3db10dc",
                 "shasum": ""
             },
             "require": {
                 "bit3/no-op-logger": "~1.0",
                 "php": ">=5.3",
-                "phpcq/coding-standard": "~1.0",
                 "symfony/process": "~2.3"
             },
             "require-dev": {
@@ -50,7 +49,7 @@
                 "MIT"
             ],
             "description": "Easy to use GIT wrapper for PHP.",
-            "time": "2015-08-01 00:29:11"
+            "time": "2015-08-05 19:13:08"
         },
         {
             "name": "bit3/no-op-logger",
@@ -94,58 +93,6 @@
             ],
             "description": "A no-operation PSR-3 logger.",
             "time": "2014-12-29 15:01:01"
-        },
-        {
-            "name": "phpcq/coding-standard",
-            "version": "1.0.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/phpcq/coding-standard.git",
-                "reference": "35ce5b6979303cf6ede530f846d3a3d2cafdec03"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/phpcq/coding-standard/zipball/35ce5b6979303cf6ede530f846d3a3d2cafdec03",
-                "reference": "35ce5b6979303cf6ede530f846d3a3d2cafdec03",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=5.3"
-            },
-            "require-dev": {
-                "phpunit/phpunit": "~3.7",
-                "squizlabs/php_codesniffer": "~1.0"
-            },
-            "suggest": {
-                "phpcq/phpcq": "The PHP code quality project core tasks."
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-develop": "1.x-dev"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "BSD-3-Clause and MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Christian Schiffler",
-                    "email": "c.schiffler@cyberspectrum.de",
-                    "homepage": "http://www.cyberspectrum.de",
-                    "role": "Developer"
-                },
-                {
-                    "name": "Tristan Lins",
-                    "email": "tristan@lins.io",
-                    "homepage": "https://tristan.lins.io",
-                    "role": "Developer"
-                }
-            ],
-            "description": "PHP code quality project coding standard",
-            "homepage": "http://phpcq.org/",
-            "time": "2015-01-11 22:02:20"
         },
         {
             "name": "prewk/xml-string-streamer",
@@ -432,11 +379,11 @@
         },
         {
             "name": "webplatform/content-converter",
-            "version": "1.2",
+            "version": "1.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/webplatform/content-converter.git",
-                "reference": "624a5a6f251f0823d5d45be59c5aad9384a19fe1"
+                "reference": "3fd4efe10c884908257c1406bf95545932e4908f"
             },
             "require": {
                 "symfony/yaml": "^2.7"
@@ -468,7 +415,7 @@
                 "mediawiki",
                 "wikitext"
             ],
-            "time": "2015-07-31 17:26:13"
+            "time": "2015-08-07 18:37:36"
         }
     ],
     "packages-dev": [
@@ -813,16 +760,16 @@
         },
         {
             "name": "phpunit/php-code-coverage",
-            "version": "2.2.1",
+            "version": "2.2.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/php-code-coverage.git",
-                "reference": "6526d9bdb56e2af1e8950114d42391044d18cfa7"
+                "reference": "2d7c03c0e4e080901b8f33b2897b0577be18a13c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/php-code-coverage/zipball/6526d9bdb56e2af1e8950114d42391044d18cfa7",
-                "reference": "6526d9bdb56e2af1e8950114d42391044d18cfa7",
+                "url": "https://api.github.com/repos/sebastianbergmann/php-code-coverage/zipball/2d7c03c0e4e080901b8f33b2897b0577be18a13c",
+                "reference": "2d7c03c0e4e080901b8f33b2897b0577be18a13c",
                 "shasum": ""
             },
             "require": {
@@ -830,7 +777,7 @@
                 "phpunit/php-file-iterator": "~1.3",
                 "phpunit/php-text-template": "~1.2",
                 "phpunit/php-token-stream": "~1.3",
-                "sebastian/environment": "~1.3.1",
+                "sebastian/environment": "^1.3.2",
                 "sebastian/version": "~1.0"
             },
             "require-dev": {
@@ -871,7 +818,7 @@
                 "testing",
                 "xunit"
             ],
-            "time": "2015-08-02 04:45:08"
+            "time": "2015-08-04 03:42:39"
         },
         {
             "name": "phpunit/php-file-iterator",
@@ -1053,16 +1000,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "4.7.7",
+            "version": "4.8.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "9b97f9d807b862c2de2a36e86690000801c85724"
+                "reference": "748c6963c0a8c983fa69ee8884c885d0e98209bf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/9b97f9d807b862c2de2a36e86690000801c85724",
-                "reference": "9b97f9d807b862c2de2a36e86690000801c85724",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/748c6963c0a8c983fa69ee8884c885d0e98209bf",
+                "reference": "748c6963c0a8c983fa69ee8884c885d0e98209bf",
                 "shasum": ""
             },
             "require": {
@@ -1072,7 +1019,7 @@
                 "ext-reflection": "*",
                 "ext-spl": "*",
                 "php": ">=5.3.3",
-                "phpspec/prophecy": "~1.3,>=1.3.1",
+                "phpspec/prophecy": "^1.3.1",
                 "phpunit/php-code-coverage": "~2.1",
                 "phpunit/php-file-iterator": "~1.4",
                 "phpunit/php-text-template": "~1.2",
@@ -1080,7 +1027,7 @@
                 "phpunit/phpunit-mock-objects": "~2.3",
                 "sebastian/comparator": "~1.1",
                 "sebastian/diff": "~1.2",
-                "sebastian/environment": "~1.2",
+                "sebastian/environment": "~1.3",
                 "sebastian/exporter": "~1.2",
                 "sebastian/global-state": "~1.0",
                 "sebastian/version": "~1.0",
@@ -1095,7 +1042,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "4.7.x-dev"
+                    "dev-master": "4.8.x-dev"
                 }
             },
             "autoload": {
@@ -1121,7 +1068,7 @@
                 "testing",
                 "xunit"
             ],
-            "time": "2015-07-13 11:28:34"
+            "time": "2015-08-07 12:56:50"
         },
         {
             "name": "phpunit/phpunit-mock-objects",

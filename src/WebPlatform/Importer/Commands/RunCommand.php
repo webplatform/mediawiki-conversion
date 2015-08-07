@@ -19,7 +19,7 @@ use WebPlatform\Importer\GitPhp\GitRepository;
 use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
 use WebPlatform\Importer\Model\MediaWikiDocument;
-use WebPlatform\Importer\Converter\MediaWikiToHtml;
+use WebPlatform\ContentConverter\Converter\MediaWikiToHtml;
 use WebPlatform\Importer\Filter\TitleFilter;
 use SplDoublyLinkedList;
 use SimpleXMLElement;
@@ -87,9 +87,9 @@ DESCR;
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per page ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of pages', 0),
                     new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run a 3rd pass only for them'),
+                    new InputOption('links', '', InputOption::VALUE_NONE, 'Instead of attempting to grab HTML from MediaWiki, grab links and copy them in a links.txt file beside the exported html file.'),
                     new InputOption('namespace-prefix', '', InputOption::VALUE_OPTIONAL, 'If not against main MediaWiki namespace, set prefix (e.g. Meta) so we can create a git repo with all contents on root so that we can use export as a submodule.', false),
                     new InputOption('resume-at', '', InputOption::VALUE_OPTIONAL, 'Resume run at a specific XML document index number ', 0),
-                    new InputOption('retry', '', InputOption::VALUE_OPTIONAL, 'List of indexes you want to query again', null),
                 ]
             );
     }
@@ -102,13 +102,13 @@ DESCR;
 
         $passNbr = (int) $input->getArgument('pass');
 
-        $retries = explode(',', $input->getOption('retry'));
         $resumeAt = (int) $input->getOption('resume-at');
 
         $xmlSource = $input->getOption('xml-source');
         $maxHops = (int) $input->getOption('max-pages');   // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
         $listMissed = $input->getOption('missed');
+        $listLinks = $input->getOption('links');
         $namespacePrefix = $input->getOption('namespace-prefix');
 
         $counter = 0;    // Increment the number of pages we are going through
@@ -116,8 +116,8 @@ DESCR;
         $pages = [];
         $urlParts = [];
 
-        if (count($retries) >= 1 && $retries[0] !== '' && $passNbr !== 3) {
-            throw new DomainException('Retry option is only supported at 3rd pass');
+        if ($listLinks === true && $passNbr !== 3) {
+            throw new DomainException('Links option is only supported at 3rd pass');
         }
 
         if ($listMissed === true && $passNbr === 3) {
@@ -147,23 +147,26 @@ DESCR;
         }
 
         if ($passNbr === 3) {
-            /*
+
+            /**
              * Your MediaWiki API URL
-             */
-            $apiUrl  = MEDIAWIKI_API_ORIGIN.'/w/api.php?format=json&action=parse&prop=text|links|templates|';
-            $apiUrl .= 'images|externallinks|categories|sections|headitems|displaytitle|iwlinks|properties&pst=1';
-            $apiUrl .= '&disabletoc=true&disablepp=true&disableeditsection=true&preview=true&page=';
+             *
+             * https://www.mediawiki.org/wiki/API:Data_formats
+             * https://www.mediawiki.org/wiki/API:Parsing_wikitext
+             **/
+            if ($listLinks === true) {
+                $apiUrl  = MEDIAWIKI_API_ORIGIN . '/w/api.php?format=json&action=parse&pst=1&utf8=';
+                $apiUrl .= '&prop=links|images|externallinks|iwlinks';
+                $apiUrl .= '&disabletoc=true&disablepp=true&disableeditsection=true&preview=true&page=';
+            } else {
+                $apiUrl  = MEDIAWIKI_API_ORIGIN . '/w/api.php?format=json&action=parse&pst=1&utf8=';
+                $apiUrl .= '&prop=text|displaytitle|properties';
+                $apiUrl .= '&disabletoc=true&disablepp=true&disableeditsection=true&preview=true&page=';
+            }
 
             // We are at conversion pass, instantiate our Converter!
             $this->converter = new MediaWikiToHtml();
             $this->converter->setApiUrl($apiUrl);
-
-            sort($retries);
-            if (count($retries) === 1 && $retries[0] === '') {
-                unset($retries);
-            }
-        } else {
-            unset($retries);
         }
 
         /* -------------------- Author --------------------
@@ -193,38 +196,6 @@ DESCR;
         /* -------------------- /XML source -------------------- **/
 
         while ($node = $streamer->getNode()) {
-
-            /**
-             * 3rd pass, handle retries.
-             *
-             * This is useful if you went through all pages but some pages didn’t work.
-             * We can ask to re-run only specific ones by using --retry= and a coma separated
-             * list of index numbers (i.e. the $counter value we use for each page node).
-             *
-             * This set of case handles three situations only at 3rd pass AND when command has
-             * --retry=n,n,n specified.
-             *
-             * 1. If current iteration ($counter) *matches* one of the $retries entries
-             *
-             *    We want to let the process be executed through and added as a revision
-             *
-             * 2. Current iteration ($counter) *isn’t listed* in $retries; go to next.
-             *
-             * 3. We have no entries in $retries anymore, exit.
-             *
-             * ... THIS IS BOGUS, USE --missed INSTEAD!
-             */
-            if (isset($retries) && in_array($indexCorrector, $retries)) {
-                $retryNodeIndex = array_search($indexCorrector, $retries);
-                unset($retries[$retryNodeIndex]);
-                $output->writeln(PHP_EOL.sprintf('Will work on %d', $indexCorrector).PHP_EOL);
-            } elseif (isset($retries) && count($retries) >= 1) {
-                ++$counter;
-                continue;
-            } elseif (isset($retries) && count($retries) === 0) {
-                $output->writeln('No more retries to work with'.PHP_EOL);
-                break;
-            }
 
             /*
              * 3rd pass, handle interruption by telling where to resume work.
@@ -273,7 +244,7 @@ DESCR;
                 }
 
                 if ($passNbr === 3 && $wikiDocument->hasRedirect() === false) {
-                    $random = rand(5, 10);
+                    $random = rand(2, 5);
                     $output->writeln(PHP_EOL.sprintf('--- sleep for %d to not break production ---', $random));
                     sleep($random);
                 }
@@ -387,6 +358,7 @@ DESCR;
                     if ($passNbr === 3) {
                         try {
                             $revision = $this->converter->apply($wikiRevision);
+                            $revision->setFrontMatter(array('path'=>$file_path));
                         } catch (Exception $e) {
                             $output->writeln(sprintf('    - ERROR: %s, left a note in errors/%d.txt', $e->getMessage(), $counter));
                             $this->filesystem->dumpFile(sprintf('errors/%d.txt', $counter), $e->getMessage());
