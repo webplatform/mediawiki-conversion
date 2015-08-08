@@ -4,6 +4,7 @@
  * WebPlatform MediaWiki Conversion.
  **/
 
+use WebPlatform\Importer\Commands\RefreshPagesCommand;
 use WebPlatform\Importer\Commands\SummaryCommand;
 use WebPlatform\Importer\Commands\RunCommand;
 use Symfony\Component\Console\Application;
@@ -16,6 +17,7 @@ use Symfony\Component\Console\Application;
 if ($console instanceof Application) {
 
     // Load all commands here directly
+    $console->add(new RefreshPagesCommand());
     $console->add(new SummaryCommand());
     $console->add(new RunCommand());
 

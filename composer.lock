@@ -383,7 +383,7 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/webplatform/content-converter.git",
-                "reference": "3fd4efe10c884908257c1406bf95545932e4908f"
+                "reference": "74a479931e2218acc9298c8f85306bf9828e80cd"
             },
             "require": {
                 "symfony/yaml": "^2.7"
@@ -415,7 +415,7 @@
                 "mediawiki",
                 "wikitext"
             ],
-            "time": "2015-08-07 18:37:36"
+            "time": "2015-08-08 01:26:30"
         }
     ],
     "packages-dev": [

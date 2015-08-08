@@ -16,8 +16,13 @@ date_default_timezone_set('America/Montreal');
 $_SERVER['REMOTE_ADDR']='127.0.0.1';
 
 // Set to your own, or use https://github.com/wikimedia/mediawiki-vagrant
-define('MEDIAWIKI_API_ORIGIN', 'https://docs.webplatform.org');
+define('MEDIAWIKI_API_ORIGIN', 'http://127.0.0.1:8080');
 define('COMMITER_ANONYMOUS_DOMAIN', 'docs.webplatform.org');
+
+//define('MEDIAWIKI_USERID', '100');
+//define('MEDIAWIKI_USERNAME', 'Foobar');
+//define('MEDIAWIKI_SESSION', '...');
+//define('MEDIAWIKI_WIKINAME', 'wpwiki');
 
 $wd = realpath(__DIR__ . '/..');
 define('DATA_DIR', $wd.'/data');
