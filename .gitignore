@@ -6,3 +6,4 @@ src/WebPlatform/ContentConverter/
 out/
 *.sublime*
 errors/
+.env

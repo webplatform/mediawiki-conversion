@@ -3,7 +3,6 @@
 /**
  * WebPlatform MediaWiki Conversion workbench.
  */
-
 namespace WebPlatform\Importer\Filter;
 
 use WebPlatform\ContentConverter\Filter\AbstractFilter;

@@ -3,7 +3,6 @@
 /**
  * WebPlatform MediaWiki Conversion workbench.
  */
-
 namespace WebPlatform\Importer\Commands;
 
 use Symfony\Component\Console\Command\Command;
@@ -12,15 +11,15 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\Yaml;
 use Prewk\XmlStringStreamer;
 use Bit3\GitPhp\GitException;
 use WebPlatform\Importer\GitPhp\GitRepository;
+use WebPlatform\Importer\Model\MediaWikiDocument;
+use WebPlatform\Importer\Converter\MediaWikiToHtml;
+use WebPlatform\Importer\Filter\TitleFilter;
+use WebPlatform\ContentConverter\Helpers\YamlHelper;
 use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
-use WebPlatform\Importer\Model\MediaWikiDocument;
-use WebPlatform\ContentConverter\Converter\MediaWikiToHtml;
-use WebPlatform\Importer\Filter\TitleFilter;
 use SplDoublyLinkedList;
 use SimpleXMLElement;
 use Exception;
@@ -45,6 +44,9 @@ class RunCommand extends Command
 
     /** @var Bit3\GitPhp\GitRepository Git Repository handler */
     protected $git;
+
+    /** @var WebPlatform\ContentConverter\Helpers\YamlHelper Yaml Helper instance */
+    protected $yaml;
 
     protected function configure()
     {
@@ -87,7 +89,6 @@ DESCR;
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per page ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of pages', 0),
                     new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run a 3rd pass only for them'),
-                    new InputOption('links', '', InputOption::VALUE_NONE, 'Instead of attempting to grab HTML from MediaWiki, grab links and copy them in a links.txt file beside the exported html file.'),
                     new InputOption('namespace-prefix', '', InputOption::VALUE_OPTIONAL, 'If not against main MediaWiki namespace, set prefix (e.g. Meta) so we can create a git repo with all contents on root so that we can use export as a submodule.', false),
                     new InputOption('resume-at', '', InputOption::VALUE_OPTIONAL, 'Resume run at a specific XML document index number ', 0),
                 ]
@@ -96,6 +97,8 @@ DESCR;
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->yaml = new YamlHelper();
+
         $this->users = [];
         $this->filesystem = new Filesystem();
         $this->titleFilter = new TitleFilter();
@@ -108,7 +111,6 @@ DESCR;
         $maxHops = (int) $input->getOption('max-pages');   // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
         $listMissed = $input->getOption('missed');
-        $listLinks = $input->getOption('links');
         $namespacePrefix = $input->getOption('namespace-prefix');
 
         $counter = 0;    // Increment the number of pages we are going through
@@ -116,19 +118,14 @@ DESCR;
         $pages = [];
         $urlParts = [];
 
-        if ($listLinks === true && $passNbr !== 3) {
-            throw new DomainException('Links option is only supported at 3rd pass');
-        }
-
         if ($listMissed === true && $passNbr === 3) {
             $missed_file = DATA_DIR.'/missed.yml';
             if (realpath($missed_file) === false) {
                 throw new Exception(sprintf('Could not find missed file at %s', $missed_file));
             }
             $missedFileContents = file_get_contents($missed_file);
-            $parser = new Yaml\Parser();
             try {
-                $missed = $parser->parse($missedFileContents);
+                $missed = $this->yaml->unserialize($missedFileContents);
             } catch (Exception $e) {
                 throw new Exception(sprintf('Could not get file %s contents to be parsed as YAML. Is it in YAML format?', $missed_file), null, $e);
             }
@@ -148,21 +145,15 @@ DESCR;
 
         if ($passNbr === 3) {
 
-            /**
+            /*
              * Your MediaWiki API URL
              *
              * https://www.mediawiki.org/wiki/API:Data_formats
              * https://www.mediawiki.org/wiki/API:Parsing_wikitext
              **/
-            if ($listLinks === true) {
-                $apiUrl  = MEDIAWIKI_API_ORIGIN . '/w/api.php?format=json&action=parse&pst=1&utf8=';
-                $apiUrl .= '&prop=links|images|externallinks|iwlinks';
-                $apiUrl .= '&disabletoc=true&disablepp=true&disableeditsection=true&preview=true&page=';
-            } else {
-                $apiUrl  = MEDIAWIKI_API_ORIGIN . '/w/api.php?format=json&action=parse&pst=1&utf8=';
-                $apiUrl .= '&prop=text|displaytitle|properties';
-                $apiUrl .= '&disabletoc=true&disablepp=true&disableeditsection=true&preview=true&page=';
-            }
+            $apiUrl = getenv('MEDIAWIKI_API_ORIGIN').'/w/api.php?action=parse&pst=1&utf8=';
+            $apiUrl .= '&prop=indicators|text|templates|categories|links|displaytitle';
+            $apiUrl .= '&disabletoc=true&disablepp=true&disableeditsection=true&preview=true&format=json&page=';
 
             // We are at conversion pass, instantiate our Converter!
             $this->converter = new MediaWikiToHtml();
@@ -358,10 +349,11 @@ DESCR;
                     if ($passNbr === 3) {
                         try {
                             $revision = $this->converter->apply($wikiRevision);
-                            $revision->setFrontMatter(array('path'=>$file_path));
+                            $revision->setTitle($wikiDocument->getLastTitleFragment());
                         } catch (Exception $e) {
                             $output->writeln(sprintf('    - ERROR: %s, left a note in errors/%d.txt', $e->getMessage(), $counter));
                             $this->filesystem->dumpFile(sprintf('errors/%d.txt', $counter), $e->getMessage());
+                            //throw new Exception('Debugging why API call did not work.', 0, $e); // DEBUG
                             ++$counter;
                             continue;
                         }
@@ -469,6 +461,8 @@ DESCR;
 
         if ($passNbr === 3) {
             $output->writeln('3rd pass. One. Commit.'.PHP_EOL.PHP_EOL);
+            //$output->writeln('OK!'); // DEBUG
+            //return; // DEBUG
             try {
                 $this->git
                     ->commit()

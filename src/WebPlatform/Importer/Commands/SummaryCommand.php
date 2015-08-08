@@ -3,7 +3,6 @@
 /**
  * WebPlatform MediaWiki Conversion workbench.
  */
-
 namespace WebPlatform\Importer\Commands;
 
 use Symfony\Component\Console\Command\Command;
@@ -11,10 +10,10 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\Yaml;
 use Prewk\XmlStringStreamer;
 use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
+use WebPlatform\ContentConverter\Helpers\YamlHelper;
 use WebPlatform\Importer\Model\MediaWikiDocument;
 use WebPlatform\Importer\Filter\TitleFilter;
 use SimpleXMLElement;
@@ -33,6 +32,9 @@ class SummaryCommand extends Command
 
     /** @var Symfony\Component\Filesystem\Filesystem Symfony Filesystem handler */
     protected $filesystem;
+
+    /** @var WebPlatform\ContentConverter\Helpers\YamlHelper Yaml Helper instance */
+    protected $yaml;
 
     protected function configure()
     {
@@ -66,6 +68,8 @@ DESCR;
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->yaml = new YamlHelper();
+
         $this->users = [];
         $this->filesystem = new Filesystem();
         $this->titleFilter = new TitleFilter();
@@ -104,9 +108,8 @@ DESCR;
                 throw new Exception(sprintf('Could not find missed file at %s', $missed_file));
             }
             $missedFileContents = file_get_contents($missed_file);
-            $parser = new Yaml\Parser();
             try {
-                $missed = $parser->parse($missedFileContents);
+                $missed = $this->yaml->unserialize($missedFileContents);
             } catch (Exception $e) {
                 throw new Exception(sprintf('Could not get file %s contents to be parsed as YAML. Is it in YAML format?', $missed_file), null, $e);
             }
@@ -391,8 +394,8 @@ DESCR;
         }
         $this->filesystem->dumpFile('reports/url_parts_variants.txt', implode(PHP_EOL, $urlPartsAllOut));
 
-        ksort($redirects, SORT_NATURAL|SORT_FLAG_CASE);
-        ksort($sanity_redirs, SORT_NATURAL|SORT_FLAG_CASE);
+        ksort($redirects, SORT_NATURAL | SORT_FLAG_CASE);
+        ksort($sanity_redirs, SORT_NATURAL | SORT_FLAG_CASE);
 
         $nginx_almost_same_1 = ['# Most likely OK to ignore, but good enough to check if adresses here works'];
         $nginx_almost_same_2 = ['# Most likely OK to ignore, but good enough to check if adresses here works'];
@@ -419,7 +422,7 @@ DESCR;
             // NGINX Case-insensitive redirect? Its done through (?i)! Should be documented!!!
             $new_location = str_replace(array_keys($nginx_esc), $nginx_esc, $url);
             $url_match_attempt = str_replace('(\ |_)', '_', $new_location);
-            $work_item = $url . ':'.PHP_EOL.'  - new_location: "' . $new_location . '"'.PHP_EOL.'  - url_match_attempt: "' . $url_match_attempt . '"'.PHP_EOL.'  - redirect_to: "'. $redirect_to .'"'.PHP_EOL;
+            $work_item = $url.':'.PHP_EOL.'  - new_location: "'.$new_location.'"'.PHP_EOL.'  - url_match_attempt: "'.$url_match_attempt.'"'.PHP_EOL.'  - redirect_to: "'.$redirect_to.'"'.PHP_EOL;
             $duplicate = false;
 
             if (array_key_exists(strtolower($url), $hopefully_not_duplicate)) {
@@ -441,7 +444,6 @@ DESCR;
             } else {
                 $nginx_redirects[] = sprintf('rewrite (?i)^/%s$ /%s break;', $new_location, $redirect_to);
             }
-
         }
         $this->filesystem->dumpFile('reports/location_spaghetti_duplicated.txt', implode(PHP_EOL, $location_spaghetti_duplicated));
         $this->filesystem->dumpFile('reports/location_spaghetti.txt', implode(PHP_EOL, $location_spaghetti));
@@ -464,11 +466,8 @@ DESCR;
         $this->filesystem->dumpFile('reports/redirects.txt', implode(PHP_EOL, $redirects_out));
 
         if ($listMissed === true) {
-            $yaml = new Yaml\Dumper();
-            $yaml->setIndentation(2);
-
             try {
-                $missed_out = $yaml->dump($missedIndexes, 3, 0, false, false);
+                $missed_out = $this->yaml->serialize($missedIndexes);
             } catch (Exception $e) {
                 $missed_out = sprintf('Could not create YAML out of missedIndexes array; Error was %s', $e->getMessage());
             }

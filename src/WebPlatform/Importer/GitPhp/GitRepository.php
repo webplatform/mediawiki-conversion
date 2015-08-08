@@ -3,7 +3,6 @@
 /**
  * WebPlatform MediaWiki Conversion workbench.
  */
-
 namespace WebPlatform\Importer\GitPhp;
 
 use Bit3\GitPhp\GitRepository as BaseGitRepository;

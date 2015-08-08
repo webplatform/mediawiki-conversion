@@ -3,7 +3,6 @@
 /**
  * WebPlatform MediaWiki Conversion workbench.
  */
-
 namespace WebPlatform\Importer\Model;
 
 use WebPlatform\ContentConverter\Model\MediaWikiDocument as BaseMediaWikiDocument;
