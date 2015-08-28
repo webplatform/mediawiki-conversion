@@ -5,17 +5,15 @@
  */
 namespace WebPlatform\Importer\Commands;
 
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Filesystem\Filesystem;
-use Prewk\XmlStringStreamer;
-use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
-use WebPlatform\ContentConverter\Helpers\YamlHelper;
+use WebPlatform\ContentConverter\Model\MediaWikiContributor;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Input\InputInterface;
 use WebPlatform\Importer\Model\MediaWikiDocument;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Command\Command;
 use WebPlatform\Importer\Filter\TitleFilter;
+use Prewk\XmlStringStreamer;
 use SimpleXMLElement;
 use Exception;
 
@@ -24,18 +22,8 @@ use Exception;
  *
  * @author Renoir Boulanger <hello@renoirboulanger.com>
  */
-class SummaryCommand extends Command
+class SummaryCommand extends AbstractImporterCommand
 {
-    protected $users = array();
-
-    protected $missed = array();
-
-    /** @var Symfony\Component\Filesystem\Filesystem Symfony Filesystem handler */
-    protected $filesystem;
-
-    /** @var WebPlatform\ContentConverter\Helpers\YamlHelper Yaml Helper instance */
-    protected $yaml;
-
     protected function configure()
     {
         $description = <<<DESCR
@@ -55,35 +43,32 @@ DESCR;
             ->setDescription($description)
             ->setDefinition(
                 [
-                    new InputOption('xml-source', '', InputOption::VALUE_OPTIONAL, 'What file to read from. Argument is relative from data/ folder from this directory (e.g. foo.xml in data/foo.xml)', 'dumps/main_full.xml'),
+                    new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run a 3rd pass only for them'),
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per document ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of documents', 0),
-                    new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run a 3rd pass only for them'),
                     new InputOption('namespace-prefix', '', InputOption::VALUE_OPTIONAL, 'If not against main MediaWiki namespace, set prefix (e.g. Meta) so we can create a git repo with all contents on root so that we can use export as a submodule.', false),
                     new InputOption('display-author', '', InputOption::VALUE_NONE, 'Display or not the author and email address (useful to hide info for public reports), defaults to false'),
                     new InputOption('indexes', '', InputOption::VALUE_NONE, 'Whether or not we display loop indexes'),
                 ]
             );
+
+        parent::configure();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->yaml = new YamlHelper();
+        $this->init($input);
 
-        $this->users = [];
-        $this->filesystem = new Filesystem();
-        $this->titleFilter = new TitleFilter();
+        $xmlSource = $input->getOption('xml-source');
+        $listMissed = $input->getOption('missed');
+
+        $maxHops = (int) $input->getOption('max-pages');   // Maximum number of pages we go through
+        $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
+        $namespacePrefix = $input->getOption('namespace-prefix');
 
         $displayIndex = $input->getOption('indexes');
         $displayAuthor = $input->getOption('display-author');
 
-        $xmlSource = $input->getOption('xml-source');
-        $maxHops = (int) $input->getOption('max-pages');    // Maximum number of pages we go through
-        $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
-        $listMissed = $input->getOption('missed');
-        $namespacePrefix = $input->getOption('namespace-prefix');
-
-        $counter = 0;    // Increment the number of pages we are going through
         $redirects = [];
         $pages = [];
         $urlParts = [];
@@ -102,76 +87,27 @@ DESCR;
         //$temporary_acceptable_duplicates[] = 'css/selectors/pseudo-classes/:lang'; // DONE
 
         if ($listMissed === true) {
-            $output->writeln('We are going to try to give you XML indexes to use for --retry=..., we will therefore limit the revision loops to one.');
-            $missed_file = DATA_DIR.'/missed.yml';
-            if (realpath($missed_file) === false) {
-                throw new Exception(sprintf('Could not find missed file at %s', $missed_file));
-            }
-            $missedFileContents = file_get_contents($missed_file);
-            try {
-                $missed = $this->yaml->unserialize($missedFileContents);
-            } catch (Exception $e) {
-                throw new Exception(sprintf('Could not get file %s contents to be parsed as YAML. Is it in YAML format?', $missed_file), null, $e);
-            }
-            if (!isset($missed['missed'])) {
-                throw new Exception('Please ensure missed.yml has a list of titles under a "missed:" top level key');
-            }
-            $revMaxHops = 1;
-            $this->missed = $missed['missed'];
+            $this->loadMissed(DATA_DIR.'/missed.yml');
         }
 
-        /* -------------------- Author --------------------
-         *
-         * Author array of MediaWikiContributor objects with $this->users[$uid],
-         * where $uid is MediaWiki user_id.
-         *
-         * You may have to increase memory_limit value,
-         * but we’ll load this only once.
-         **/
-        $users_file = DATA_DIR.'/users.json';
-        $users_loop = json_decode(file_get_contents($users_file), 1);
+        $this->loadUsers(DATA_DIR.'/users.json');
 
-        foreach ($users_loop as &$u) {
-            $uid = (int) $u['user_id'];
-            $this->users[$uid] = new MediaWikiContributor($u);
-            unset($u); // Dont fill too much memory, if that helps.
-        }
-        /* -------------------- /Author -------------------- **/
+        $this->titleFilter = new TitleFilter();
 
-        /* -------------------- XML source -------------------- **/
-        $file = realpath(DATA_DIR.'/'.$xmlSource);
-        if ($file === false) {
-            throw new Exception(sprintf('Cannot run script, source XML file ./data/%s could not be found', $xmlSource));
-        }
-        $streamer = XmlStringStreamer::createStringWalkerParser($file);
-        /* -------------------- /XML source -------------------- **/
-
+        $streamer = $this->sourceXmlStreamFactory(DATA_DIR.'/'.$xmlSource);
+        $counter = 0;
         while ($node = $streamer->getNode()) {
-            if ($maxHops > 0 && $maxHops === $counter) {
-                $output->writeln(sprintf('Reached desired maximum of %d loops', $maxHops).PHP_EOL.PHP_EOL);
-                break;
-            }
             $pageNode = new SimpleXMLElement($node);
             if (isset($pageNode->title)) {
+
+                $counter++;
+                if ($maxHops > 0 && $maxHops === $counter) {
+                    $output->writeln(sprintf('Reached desired maximum of %d documents', $maxHops).PHP_EOL);
+                    break;
+                }
+
                 $wikiDocument = new MediaWikiDocument($pageNode);
-                //
-                // While importing WPD, Meta and Users namespaces, we were writing into 'out/' directly!
-                //
-                // If you want to migrate content from multiple MediaWiki namespaces and convert into a static
-                // site generator, you may want to keep separation and have a separate git repository per namespace.
-                //
-                // The reason you would do this is that other namespaces than the main may have content that isn’t
-                // the main reason of existence of the site and it would "pollute" the main content new git repository
-                // this will create.
-                //
-                // The main namespace would store file in a child folder (e.g. content/) so that we can add other assets
-                // in that repository such as code for a static site generator, templates, etc.
-                //
-                // But, for alternate content, we want them to be submodules and therefore need them to be at the root
-                // of the directory as if they were part of the content, but yet in their own repositories.
-                //
-                $writeTo = ($namespacePrefix === false) ? 'out/content/' : 'out/';
-                $persistable = new GitCommitFileRevision($wikiDocument, $writeTo, '.md');
+                $persistable = new GitCommitFileRevision($wikiDocument, 'out/', '.md');
 
                 $title = $wikiDocument->getTitle();
                 $normalized_location = $wikiDocument->getName();
@@ -179,11 +115,11 @@ DESCR;
                 $file_path = ($namespacePrefix === false) ? $file_path : str_replace(sprintf('%s/', $namespacePrefix), '', $file_path);
                 $redirect_to = $this->titleFilter->filter($wikiDocument->getRedirect()); // False if not a redirect, string if it is
 
-                $is_translation = $wikiDocument->isTranslation();
                 $language_code = $wikiDocument->getLanguageCode();
                 $language_name = $wikiDocument->getLanguageName();
-
                 $revs = $wikiDocument->getRevisions()->count();
+                $revList = $wikiDocument->getRevisions();
+                $revLast = $wikiDocument->getLatest();
 
                 $output->writeln(sprintf('"%s":', $title));
                 if ($displayIndex === true) {
@@ -192,19 +128,29 @@ DESCR;
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
 
+                if ($wikiDocument->isTranslation() === true) {
+                    $output->writeln(sprintf('  - lang: %s (%s)', $language_code, $language_name));
+                }
+
                 if ($wikiDocument->hasRedirect() === true) {
                     $output->writeln(sprintf('  - redirect_to: %s', $redirect_to));
                 } else {
+                    /**
+                     * Gather what we can know from the location.
+                     *
+                     * Explode all parts in two separate arrays so we’ll be able to tell
+                     * if we have conflicts (e.g. CSS/Selectors .. css/selectors). So we can
+                     * harmonize the names to have **ONLY ONE** way of writing the casing for a
+                     * given path.
+                     *
+                     * If you want to define how to write an URL part, refer to TitleFilter class.
+                     */
                     $urlsWithContent[] = $title;
                     foreach (explode('/', $normalized_location) as $urlDepth => $urlPart) {
                         $urlPartKey = strtolower($urlPart);
                         $urlParts[$urlPartKey] = $urlPart;
                         $urlPartsAll[$urlPartKey][] = $urlPart;
                     }
-                }
-
-                if ($is_translation === true) {
-                    $output->writeln(sprintf('  - lang: %s (%s)', $language_code, $language_name));
                 }
 
                 if ($listMissed === true && in_array($normalized_location, $this->missed)) {
@@ -214,24 +160,38 @@ DESCR;
                 $output->writeln(sprintf('  - revs: %d', $revs));
                 $output->writeln(sprintf('  - revisions:'));
 
-                $revList = $wikiDocument->getRevisions();
-                $revLast = $wikiDocument->getLatest();
-                $revCounter = 0;
-
                 /* ----------- REVISION --------------- **/
+                $revCounter = 0;
                 for ($revList->rewind(); $revList->valid(); $revList->next()) {
+                    $revCounter++;
+
                     if ($revMaxHops > 0 && $revMaxHops === $revCounter) {
                         $output->writeln(sprintf('    - stop: Reached maximum %d revisions', $revMaxHops).PHP_EOL.PHP_EOL);
                         break;
                     }
 
                     $wikiRevision = $revList->current();
-                    $revision_id = $wikiRevision->getId();
 
                     /* -------------------- Author -------------------- **/
                     // An edge case where MediaWiki may give author as user_id 0, even though we dont have it
                     // so we’ll give the first user instead.
                     $contributor_id = ($wikiRevision->getContributorId() === 0) ? 1 : $wikiRevision->getContributorId();
+
+                    /*
+                     * Fix duplicates and merge them as only one.
+                     *
+                     * Please adjust to suit your own.
+                     *
+                     * Queried using jq;
+                     *
+                     *     cat data/users.json | jq '.[]|select(.user_real_name == "Renoir Boulanger")'
+                     *
+                     * #TODO: Change the hardcoded list.
+                     */
+                    if (in_array($contributor_id, [172943, 173060, 173278, 173275, 173252, 173135, 173133, 173087, 173086, 173079, 173059, 173058, 173057])) {
+                        $contributor_id = getenv('MEDIAWIKI_USERID');
+                    }
+
                     if (isset($this->users[$contributor_id])) {
                         $contributor = clone $this->users[$contributor_id]; // We want a copy, because its specific to here only anyway.
                         $wikiRevision->setContributor($contributor, false);
@@ -242,7 +202,7 @@ DESCR;
                     }
                     /* -------------------- /Author -------------------- **/
 
-                    $output->writeln(sprintf('    - id: %d', $revision_id));
+                    $output->writeln(sprintf('    - id: %d', $wikiRevision->getId()));
                     if ($displayIndex === true) {
                         $output->writeln(sprintf('      index: %d', $revCounter));
                     }
@@ -259,14 +219,12 @@ DESCR;
                         if ($displayAuthor === false && $argKey === 'author') {
                             continue;
                         }
-                        $output->writeln(sprintf('      %s: %s', $argKey, $argVal));
+                        $output->writeln(sprintf('      %s: "%s"', $argKey, $argVal));
                     }
 
                     if ($revLast->getId() === $wikiRevision->getId() && $wikiDocument->hasRedirect()) {
                         $output->writeln('      is_last_and_has_redirect: True');
                     }
-
-                    ++$revCounter;
                 }
 
                 /* ----------- REVISION --------------- */
@@ -283,7 +241,7 @@ DESCR;
                     $moreThanHundredRevs[] = sprintf('%s (%d)', $title, $revs);
                 }
 
-                if ($is_translation === true && $wikiDocument->hasRedirect() === false) {
+                if ($wikiDocument->isTranslation() === true && $wikiDocument->hasRedirect() === false) {
                     $translations[] = $title;
                 }
 
@@ -334,9 +292,10 @@ DESCR;
                 }
 
                 $output->writeln(PHP_EOL.PHP_EOL);
-                ++$counter;
-            }
-        }
+
+            } /* End of if (isset($pageNode->title)) */
+
+        } /* End of while ($node = $streamer->getNode()) */
 
         /*
          * Work some numbers on number of edits

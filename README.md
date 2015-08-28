@@ -163,6 +163,7 @@ to get the parser to give us the generated HTML at the 3rd pass.
 
   Instead of risking to lose terminal feedback you can pipe the output into a log file.
 
+  If you have code blocks, refer to [Handle MediaWiki code syntax highlighting](#handle-mediawiki-code-syntax-highlighting)
 
   **First time 3rd pass**
 
@@ -481,6 +482,20 @@ Here’s a list of repository that were created through this workspace.
 
 
 ## Design decisions
+
+### Handle MediaWiki code Syntax Highlighting
+
+```php
+# File mediawiki/extensions/SyntaxHighlight_GeSHi/SyntaxHighlight_GeSHi.class.php, around line: 63
+# Right after the following line
+$lang = strtolower( $lang );
+
+// webplatform/mediawiki-conversion superseed GeSHi Syntax Highlight output
+$lang = str_replace(['markup', 'html5'], 'html', $lang);
+$lang = str_replace(['javascript', 'script'], 'js', $lang);
+return sprintf("\n<pre class=\"language-%s\">\n%s\n</pre>\n", $lang, $text);
+```
+
 
 ### Possible file name conflicts due to casing inconsistency
 

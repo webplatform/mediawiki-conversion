@@ -27,23 +27,6 @@ use Exception;
  */
 class MediaWikiToHtml extends BaseConverter implements ConverterInterface
 {
-    protected function getPageFromApi($title)
-    {
-        try {
-            $recv = $this->makeRequest($title);
-        } catch (Exception $e) {
-            return $e;
-        }
-
-        $dto = json_decode($recv, true);
-
-        if (!isset($dto['parse']) || !isset($dto['parse']['text'])) {
-            throw new Exception('We did could not use data we received');
-        }
-
-        return $dto['parse'];
-    }
-
     /**
      * Apply Wikitext rewrites.
      *
@@ -105,13 +88,146 @@ class MediaWikiToHtml extends BaseConverter implements ConverterInterface
                 $standardizationStatus[0]->delete();
             }
 
-            $editorialNotes = $pageDom->get('.editorial-notes');
-            if (isset($editorialNotes[0])) {
-                $editorialNotesText = $editorialNotes[0]->getText();
-                $editorialNotes[0]->delete();
-                if (!empty($editorialNotesText) && strcmp('{{{', substr($editorialNotesText, 0, 3)) !== 0) {
-                    $matter_local['editorial_notes'] = $editorialNotesText;
+            $contentRevisionNote = $pageDom->get('.is-revision-notes');
+            if (count($contentRevisionNote) >= 1) {
+                if (isset($contentRevisionNote[0])) {
+                    foreach ($contentRevisionNote as $note) {
+                        $contentRevisionNoteText = $note->getText();
+                        $note->delete();
+                        if (!empty($contentRevisionNoteText) && strcmp('{{{', substr($contentRevisionNoteText, 0, 3)) !== 0) {
+                            $matter_local['notes'][] = $contentRevisionNoteText;
+                        }
+                    }
                 }
+            }
+
+            $dataMetasOut = [];
+            // Use data-type instead, and if data-meta exists, we know the key,
+            // the other one must be the value.
+            $tags = $pageDom->get('[data-meta]');
+            if (count($tags) >= 1) {
+                foreach ($tags as $tag) {
+                    //$dataMetasKey = $tag->getDOMNode()->parentNode->getAttribute('data-meta');
+                    //$dataNodeObj = $tag->getDOMNode()->firstChild;
+                    //$dataMetasBody = '';
+
+                    $metaName = $tag->getDOMNode()->parentNode->getAttribute('data-meta');
+                    $obj = ['content'=> $tag->getHtml(), 'name'=> $metaName];
+                    var_dump($obj);
+                    
+                    /*
+                    if (isset($dataNodeObj->tagName) && $dataNodeObj->tagName !== 'span') {
+                        echo 'Is NOT a Span. Dig deeper.'.PHP_EOL;
+                        //$dataMetasBody = $dataNodeObj->nextSibling->textContent;
+                        var_dump($dataNodeObj->nextSibling->textContent);
+                    } else {
+                        echo 'Is a Span'.PHP_EOL;
+                        var_dump($dataNodeObj->textContent);
+                    }
+
+                    if (isset($dataNodeObj->wholeText)) {
+                        echo 'Has wholeText';
+                        var_dump($dataNodeObj->wholeText);
+                    }
+                    */
+
+                    //if (is_string($dataNodeObj->nextSibling) && $dataNodeObj->childNodes === null) {
+                    //    echo 'case 1'.PHP_EOL;
+                        /**
+                         * When we have text directly in the node
+                         *
+                         *
+                         * Returns
+                         *
+                         * <span data-meta="return" data-type="key">Returns an object of type <span data-type="value">Object</span></span>
+                         *
+                         * e.g.:
+                         *
+                         * object(DOMText)#176272 (19) {
+                         *     ["wholeText"]=> string(26) "Returns an object of type ",
+                         *     ["data"]=> string(26) "Returns an object of type ",
+                         *     ["length"]=> int(26),
+                         *     ["nodeName"]=> string(5) "#text",
+                         *     ["nodeValue"]=> string(26) "Returns an object of type ",
+                         *     ["nodeType"]=> int(3),
+                         *     ["parentNode"]=> string(22) "(object value omitted)",
+                         *     ["childNodes"]=> NULL,
+                         *     ["firstChild"]=> NULL,
+                         *     ["lastChild"]=> NULL,
+                         *     ["previousSibling"]=> NULL,
+                         *     ["nextSibling"]=> string(22) "(object value omitted)",
+                         *     ["attributes"]=> NULL,
+                         *     ["ownerDocument"]=> string(22) "(object value omitted)",
+                         *     ["namespaceURI"]=> NULL,
+                         *     ["prefix"]=> string(0) "",
+                         *     ["localName"]=> NULL,
+                         *     ["baseURI"]=> NULL,
+                         *     ["textContent"]=> string(26) "Returns an object of type "
+                         * }
+                         */
+                    //    $dataMetasBody = $dataNodeObj->nextSibling->textContent;
+                    //} elseif ($dataNodeObj->childNodes !== null && count($dataNodeObj->childNodes) > 1) {
+                    //    echo 'case 2'.PHP_EOL;
+
+                        /**
+                         * When we have nested italic.
+                         *
+                         * We want internal value "apis/web-storage/Storage";
+                         *
+                         * e.g.
+                         *
+                         *     {{API_Object_Property
+                         *     |Property_applies_to=apis/web-storage/Storage
+                         *     }}
+                         *
+                         * If we dig at API_Object_Property has, we have...
+                         *
+                         *     {{#if:{{{Property_applies_to|}}}|<span data-meta="applies_to" data-type="key">''Property of <span data-type="value">[[{{{Property_applies_to|}}}]]''</span></span>|}}
+                         *
+                         * Notice the ''property...'' between doubled single quotes.
+                         *
+                         * Generates the following HTML
+                         *
+                         *     <span data-meta="applies_to" data-type="key">
+                         *       <i>Property of
+                         *         <span data-type="value">
+                         *           <a href="/wiki/apis/web-storage/Storage" title="apis/web-storage/Storage">apis/web-storage/Storage</a>
+                         *         </span>
+                         *       </i>
+                         *     </span>
+                         *
+                         * object(DOMElement)#176272 (17) {
+                         *   ["tagName"]=> string(1) "i",
+                         *   ["schemaTypeInfo"]=> NULL,
+                         *   ["nodeName"]=> string(1) "i",
+                         *   ["nodeValue"]=> string(36) "Property of apis/web-storage/Storage",
+                         *   ["nodeType"]=> int(1),
+                         *   ["parentNode"]=> string(22) "(object value omitted)",
+                         *   ["childNodes"]=> string(22) "(object value omitted)",
+                         *   ["firstChild"]=> string(22) "(object value omitted)",
+                         *   ["lastChild"]=> string(22) "(object value omitted)",
+                         *   ["previousSibling"]=> NULL,
+                         *   ["attributes"]=> string(22) "(object value omitted)",
+                         *   ["ownerDocument"]=> string(22) "(object value omitted)",
+                         *   ["namespaceURI"]=> NULL,
+                         *   ["prefix"]=> string(0) "",
+                         *   ["localName"]=> string(1) "i",
+                         *   ["baseURI"]=> NULL,
+                         *   ["textContent"]=> string(36) "Property of apis/web-storage/Storage"
+                         * }
+                         */
+                    //    $dataMetasBody = $dataNodeObj->childNodes[1]->textContent;
+                    //} else {
+                    //    echo 'case else'.PHP_EOL;
+                    //}
+
+                    //var_dump($dataNodeObj);
+
+                    //if (!empty($dataMetasBody)) {
+                    //    $dataMetasOut[$dataMetasKey] = $dataMetasBody;
+                    //}
+                }
+                //$matter_local['foo'] = $dataMetasOut;
             }
 
             $titles = $pageDom->get('h1,h2,h3,h4');

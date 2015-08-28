@@ -1943,8 +1943,8 @@ css/selectors/pseudo-classes/:only-of-type
 css/selectors/pseudo-classes/:optional
 css/selectors/pseudo-classes/:required
 css/selectors/pseudo-classes/:root
-CSS/Selectors/pseudo-classes/:target
 css/selectors/pseudo-classes/:target
+CSS/Selectors/pseudo-classes/:target
 css/selectors/pseudo-classes/:valid
 css/selectors/pseudo-classes/:visited
 css/selectors/pseudo-classes/Structural pseudo-classes
@@ -3177,15 +3177,23 @@ html/elements/b/ja
 html/elements/base
 html/elements/base/ja
 html/elements/basefont
+html/elements/basefont/ja
 html/elements/bdi
 html/elements/bdo
+html/elements/bdo/ja
 html/elements/bgSound
+html/elements/bgSound/ja
 html/elements/big
+html/elements/big/ja
 html/elements/blink
 html/elements/blockquote
+html/elements/blockquote/ja
 html/elements/body
+html/elements/body/ja
 html/elements/br
+html/elements/br/ja
 html/elements/button
+html/elements/button/ja
 html/elements/canvas
 html/elements/caption
 html/elements/center

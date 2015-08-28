@@ -1,8 +1,8 @@
 Numbers:
-  - "iterations": 5079
-  - "content pages": 4662
+  - "iterations": 5087
+  - "content pages": 4670
   - "redirects": 404
-  - "translated": 84
+  - "translated": 92
   - "not in a directory": 104
   - "redirects for URL sanity": 1002
   - "edits average": 7

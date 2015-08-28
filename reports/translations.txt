@@ -53,6 +53,14 @@ html/elements/aside/ja
 html/elements/audio/ja
 html/elements/b/ja
 html/elements/base/ja
+html/elements/basefont/ja
+html/elements/bdo/ja
+html/elements/bgSound/ja
+html/elements/big/ja
+html/elements/blockquote/ja
+html/elements/body/ja
+html/elements/br/ja
+html/elements/button/ja
 html/es
 html/ja
 javascript/ja

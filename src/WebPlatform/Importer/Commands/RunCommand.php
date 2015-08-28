@@ -5,20 +5,19 @@
  */
 namespace WebPlatform\Importer\Commands;
 
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Filesystem\Filesystem;
-use Prewk\XmlStringStreamer;
 use Bit3\GitPhp\GitException;
 use WebPlatform\Importer\GitPhp\GitRepository;
 use WebPlatform\Importer\Model\MediaWikiDocument;
-use WebPlatform\Importer\Converter\MediaWikiToHtml;
+
+//use WebPlatform\Importer\Converter\MediaWikiToHtml;
+use WebPlatform\ContentConverter\Converter\MediaWikiToHtml;
+use WebPlatform\ContentConverter\Model\MediaWikiApiResponseArray;
+
 use WebPlatform\Importer\Filter\TitleFilter;
-use WebPlatform\ContentConverter\Helpers\YamlHelper;
-use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
 use SplDoublyLinkedList;
 use SimpleXMLElement;
@@ -30,23 +29,13 @@ use DomainException;
  *
  * @author Renoir Boulanger <hello@renoirboulanger.com>
  */
-class RunCommand extends Command
+class RunCommand extends AbstractImporterCommand
 {
-    protected $users = array();
-
-    protected $missed = array();
-
-    /** @var WebPlatform\ContentConverter\Converter\MediaWikiToHtml Symfony Filesystem handler */
+    /** @var WebPlatform\ContentConverter\Converter\ConverterInterface Converter instance */
     protected $converter;
-
-    /** @var Symfony\Component\Filesystem\Filesystem Symfony Filesystem handler */
-    protected $filesystem;
 
     /** @var Bit3\GitPhp\GitRepository Git Repository handler */
     protected $git;
-
-    /** @var WebPlatform\ContentConverter\Helpers\YamlHelper Yaml Helper instance */
-    protected $yaml;
 
     protected function configure()
     {
@@ -85,54 +74,37 @@ DESCR;
             ->setDefinition(
                 [
                     new InputArgument('pass', InputArgument::REQUIRED, 'The pass number: 1,2,3', null),
-                    new InputOption('xml-source', '', InputOption::VALUE_OPTIONAL, 'What file to read from. Argument is relative from data/ folder from this directory (e.g. foo.xml in data/foo.xml)', 'dumps/main_full.xml'),
+                    new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run a 3rd pass only for them'),
                     new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per page ', 0),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of pages', 0),
-                    new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run a 3rd pass only for them'),
                     new InputOption('namespace-prefix', '', InputOption::VALUE_OPTIONAL, 'If not against main MediaWiki namespace, set prefix (e.g. Meta) so we can create a git repo with all contents on root so that we can use export as a submodule.', false),
                     new InputOption('resume-at', '', InputOption::VALUE_OPTIONAL, 'Resume run at a specific XML document index number ', 0),
                 ]
             );
+
+        parent::configure();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->yaml = new YamlHelper();
-
-        $this->users = [];
-        $this->filesystem = new Filesystem();
-        $this->titleFilter = new TitleFilter();
+        $this->init($input);
 
         $passNbr = (int) $input->getArgument('pass');
 
-        $resumeAt = (int) $input->getOption('resume-at');
-
         $xmlSource = $input->getOption('xml-source');
+        $listMissed = $input->getOption('missed');
+
         $maxHops = (int) $input->getOption('max-pages');   // Maximum number of pages we go through
         $revMaxHops = (int) $input->getOption('max-revs'); // Maximum number of revisions per page we go through
-        $listMissed = $input->getOption('missed');
         $namespacePrefix = $input->getOption('namespace-prefix');
 
-        $counter = 0;    // Increment the number of pages we are going through
+        $resumeAt = (int) $input->getOption('resume-at');
+
         $redirects = [];
         $pages = [];
-        $urlParts = [];
 
         if ($listMissed === true && $passNbr === 3) {
-            $missed_file = DATA_DIR.'/missed.yml';
-            if (realpath($missed_file) === false) {
-                throw new Exception(sprintf('Could not find missed file at %s', $missed_file));
-            }
-            $missedFileContents = file_get_contents($missed_file);
-            try {
-                $missed = $this->yaml->unserialize($missedFileContents);
-            } catch (Exception $e) {
-                throw new Exception(sprintf('Could not get file %s contents to be parsed as YAML. Is it in YAML format?', $missed_file), null, $e);
-            }
-            if (!isset($missed['missed'])) {
-                throw new Exception('Please ensure missed.yml has a list of titles under a "missed:" top level key');
-            }
-            $this->missed = $missed['missed'];
+            $this->loadMissed(DATA_DIR.'/missed.yml');
         } elseif ($listMissed === true && $passNbr !== 3) {
             throw new DomainException('Missed option is only supported at 3rd pass');
         }
@@ -156,68 +128,39 @@ DESCR;
             $apiUrl .= '&disabletoc=true&disablepp=true&disableeditsection=true&preview=true&format=json&page=';
 
             // We are at conversion pass, instantiate our Converter!
+            // instanceof WebPlatform\ContentConverter\Converter\ConverterInterface
             $this->converter = new MediaWikiToHtml();
-            $this->converter->setApiUrl($apiUrl);
+            // instanceof ApiRequestHelperInterface
+            $this->initMediaWikiHelper($apiUrl);
         }
 
-        /* -------------------- Author --------------------
-         *
-         * Author array of MediaWikiContributor objects with $this->users[$uid],
-         * where $uid is MediaWiki user_id.
-         *
-         * You may have to increase memory_limit value,
-         * but we’ll load this only once.
-         **/
-        $users_file = DATA_DIR.'/users.json';
-        $users_loop = json_decode(file_get_contents($users_file), 1);
+        $this->loadUsers(DATA_DIR.'/users.json');
 
-        foreach ($users_loop as &$u) {
-            $uid = (int) $u['user_id'];
-            $this->users[$uid] = new MediaWikiContributor($u);
-            unset($u); // Dont fill too much memory, if that helps.
-        }
-        /* -------------------- /Author -------------------- **/
+        $this->titleFilter = new TitleFilter();
 
-        /* -------------------- XML source -------------------- **/
-        $file = realpath(DATA_DIR.'/'.$xmlSource);
-        if ($file === false) {
-            throw new Exception(sprintf('Cannot run script, source XML file ./data/%s could not be found', $xmlSource));
-        }
-        $streamer = XmlStringStreamer::createStringWalkerParser($file);
-        /* -------------------- /XML source -------------------- **/
-
+        $streamer = $this->sourceXmlStreamFactory(DATA_DIR.'/'.$xmlSource);
+        $counter = 0;
         while ($node = $streamer->getNode()) {
-
-            /*
-             * 3rd pass, handle interruption by telling where to resume work.
-             *
-             * This is useful if job stopped and you want to resume work back at a specific point.
-             */
-            if ($counter < $resumeAt) {
-                ++$counter;
-                continue;
-            }
-
-            /*
-             * Limit the number of pages we’ll work on.
-             *
-             * Useful if you want to test conversion script without going through all the content.
-             */
-            if ($maxHops > 0 && $maxHops === $counter) {
-                $output->writeln(sprintf('Reached desired maximum of %d documents', $maxHops).PHP_EOL);
-                break;
-            }
-
             $pageNode = new SimpleXMLElement($node);
             if (isset($pageNode->title)) {
+
+                $counter++;
+                if ($maxHops > 0 && $maxHops === $counter) {
+                    $output->writeln(sprintf('Reached desired maximum of %d documents', $maxHops).PHP_EOL);
+                    break;
+                }
+
+                /*
+                 * 3rd pass, handle interruption by telling where to resume work.
+                 *
+                 * This is useful if job stopped and you want to resume work back at a specific point.
+                 */
+                if ($counter < $resumeAt) {
+                    continue;
+                }
+
                 $wikiDocument = new MediaWikiDocument($pageNode);
-                //
-                // While importing WPD, Meta and Users namespaces, we were writing into 'out/' directly!
-                //
-                // See note at similar location in SummaryCommand for rationale.
-                //
-                $writeTo = ($namespacePrefix === false) ? 'out/content/' : 'out/';
-                $persistable = new GitCommitFileRevision($wikiDocument, $writeTo, '.md');
+                $persistable = new GitCommitFileRevision($wikiDocument, 'out/', '.md');
 
                 $title = $wikiDocument->getTitle();
                 $normalized_location = $wikiDocument->getName();
@@ -225,34 +168,42 @@ DESCR;
                 $file_path = ($namespacePrefix === false) ? $file_path : str_replace(sprintf('%s/', $namespacePrefix), '', $file_path);
                 $redirect_to = $this->titleFilter->filter($wikiDocument->getRedirect()); // False if not a redirect, string if it is
 
-                $is_translation = $wikiDocument->isTranslation();
                 $language_code = $wikiDocument->getLanguageCode();
                 $language_name = $wikiDocument->getLanguageName();
+                $revs = $wikiDocument->getRevisions()->count();
+                $revList = $wikiDocument->getRevisions();
+                $revLast = $wikiDocument->getLatest();
 
+                /**
+                 * This is when we want only to pass through files described in data/missed.yml
+                 *
+                 * Much useful if you want to make slow API requests and not run the import again.
+                 */
                 if ($listMissed === true && !in_array($normalized_location, $this->missed)) {
-                    ++$counter;
                     continue;
                 }
 
+                /**
+                 * At 3rd pass, let’s not make API requests to documents we know are redirects
+                 * and therefore empty.
+                 */
                 if ($passNbr === 3 && $wikiDocument->hasRedirect() === false) {
                     $random = rand(2, 5);
                     $output->writeln(PHP_EOL.sprintf('--- sleep for %d to not break production ---', $random));
                     sleep($random);
                 }
 
-                $revs = $wikiDocument->getRevisions()->count();
-
                 $output->writeln(sprintf('"%s":', $title));
                 $output->writeln(sprintf('  - index: %d', $counter));
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
 
-                if ($wikiDocument->hasRedirect() === true) {
-                    $output->writeln(sprintf('  - redirect_to: %s', $redirect_to));
+                if ($wikiDocument->isTranslation() === true) {
+                    $output->writeln(sprintf('  - lang: %s (%s)', $language_code, $language_name));
                 }
 
-                if ($is_translation === true) {
-                    $output->writeln(sprintf('  - lang: %s (%s)', $language_code, $language_name));
+                if ($wikiDocument->hasRedirect() === true) {
+                    $output->writeln(sprintf('  - redirect_to: %s', $redirect_to));
                 }
 
                 /*
@@ -265,17 +216,14 @@ DESCR;
                 if ($wikiDocument->hasRedirect() === false && $passNbr === 1) {
                     // Skip all NON redirects for pass 1
                     $output->writeln(sprintf('  - skip: Document %s WITHOUT redirect, at pass 1 (handling redirects)', $title).PHP_EOL.PHP_EOL);
-                    ++$counter;
                     continue;
                 } elseif ($wikiDocument->hasRedirect() && $passNbr === 2) {
                     // Skip all redirects for pass 2
                     $output->writeln(sprintf('  - skip: Document %s WITH redirect, at pass 2 (handling non redirects)', $title).PHP_EOL.PHP_EOL);
-                    ++$counter;
                     continue;
                 } elseif ($wikiDocument->hasRedirect() && $passNbr === 3) {
                     // Skip all redirects for pass 2
                     $output->writeln(sprintf('  - skip: Document %s WITH redirect, at pass 3', $title).PHP_EOL.PHP_EOL);
-                    ++$counter;
                     continue;
                 }
 
@@ -283,23 +231,14 @@ DESCR;
                     throw new DomainException('This command has only three pases.');
                 }
 
-                foreach (explode('/', $normalized_location) as $urlDepth => $urlPart) {
-                    $urlParts[strtolower($urlPart)] = $urlPart;
-                }
-
-                $revList = $wikiDocument->getRevisions();
-                $revLast = $wikiDocument->getLatest();
-                $revCounter = 0;
-
                 if ($passNbr === 3) {
-
                     // Overwriting $revList for last pass we’ll
                     // use for conversion.
                     $revList = new SplDoublyLinkedList();
 
                     // Pass some data we already have so we can
                     // get it in the converted document.
-                    if ($is_translation === true) {
+                    if ($wikiDocument->isTranslation() === true) {
                         $revLast->setFrontMatter(array('lang' => $language_code));
                     }
                     $revList->push($revLast);
@@ -309,7 +248,10 @@ DESCR;
                 }
 
                 /* ----------- REVISIONS --------------- **/
+                $revCounter = 0;
                 for ($revList->rewind(); $revList->valid(); $revList->next()) {
+                    $revCounter++;
+
                     if ($revMaxHops > 0 && $revMaxHops === $revCounter) {
                         $output->writeln(sprintf('    - stop: Reached maximum %d revisions', $revMaxHops).PHP_EOL.PHP_EOL);
                         break;
@@ -330,10 +272,12 @@ DESCR;
                      * Queried using jq;
                      *
                      *     cat data/users.json | jq '.[]|select(.user_real_name == "Renoir Boulanger")'
+                     *
+                     * #TODO: Change the hardcoded list.
                      */
-                    //if (in_array($contributor_id, [172943, 173060])) {
-                    //    $contributor_id = 10080;
-                    //}
+                    if (in_array($contributor_id, [172943, 173060, 173278, 173275, 173252, 173135, 173133, 173087, 173086, 173079, 173059, 173058, 173057])) {
+                        $contributor_id = getenv('MEDIAWIKI_USERID');
+                    }
 
                     if (isset($this->users[$contributor_id])) {
                         $contributor = clone $this->users[$contributor_id]; // We want a copy, because its specific to here only anyway.
@@ -347,19 +291,28 @@ DESCR;
 
                     // Lets handle conversion only at 3rd pass.
                     if ($passNbr === 3) {
+
                         try {
-                            $revision = $this->converter->apply($wikiRevision);
+                            /**
+                             * We are at third pass and in this case we got to
+                             * create a revision. The author is therefore the person
+                             * who’s running the script. Let’s define it.
+                             */
+                            $contributor_id = getenv('MEDIAWIKI_USERID');
+                            $contributor = clone $this->users[$contributor_id]; // We want a copy, because its specific to here only anyway.
+
+                            /** @var MediaWikiApiResponseArray object to work with */
+                            $respObj = $this->apiMediaWikiResponseArrayFactory($title);
+                            $revision = $this->converter->prepare($respObj);
                             $revision->setTitle($wikiDocument->getLastTitleFragment());
                         } catch (Exception $e) {
                             $output->writeln(sprintf('    - ERROR: %s, left a note in errors/%d.txt', $e->getMessage(), $counter));
                             $this->filesystem->dumpFile(sprintf('errors/%d.txt', $counter), $e->getMessage());
                             //throw new Exception('Debugging why API call did not work.', 0, $e); // DEBUG
-                            ++$counter;
                             continue;
                         }
 
-                        // user_id 10080 is Renoirb (yours truly)
-                        $revision->setAuthor($this->users[10080]);
+                        $revision->setAuthor($contributor);
                         $revision_id = $revLast->getId();
                     } else {
                         $revision = $wikiRevision;
@@ -402,7 +355,7 @@ DESCR;
                         // we’ll create a bogus email alias based on their MediaWiki username.
                         $real_name = $wikiRevision->getContributor()->getRealName();
                         $username = $wikiRevision->getContributor()->getName();
-                        $email = sprintf('%s@%s', $username, COMMITER_ANONYMOUS_DOMAIN);
+                        $email = sprintf('%s@%s', $username, getenv('COMMITER_ANONYMOUS_DOMAIN'));
                         $author_overload = sprintf('%s <%s>', $real_name, $email);
 
                         try {
@@ -450,28 +403,9 @@ DESCR;
                             $this->filesystem->remove($file_path);
                         }
                     } /* End of $passNubr === 3 */
-
-                    ++$revCounter;
                 }
                 /* ----------- REVISIONS --------------- **/
                 $output->writeln(PHP_EOL);
-            }
-            ++$counter;
-        }
-
-        if ($passNbr === 3) {
-            $output->writeln('3rd pass. One. Commit.'.PHP_EOL.PHP_EOL);
-            //$output->writeln('OK!'); // DEBUG
-            //return; // DEBUG
-            try {
-                $this->git
-                    ->commit()
-                    ->message($revision->getComment())
-                    ->execute();
-            } catch (GitException $e) {
-                var_dump($this->git);
-                $message = sprintf('Could not commit for revision %d', $revision_id);
-                throw new Exception($message, null, $e);
             }
         }
     }
