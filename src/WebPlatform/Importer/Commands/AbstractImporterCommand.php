@@ -132,8 +132,25 @@ abstract class AbstractImporterCommand extends Command
         $this->missed = $missed['missed'];
     }
 
-    protected function initMediaWikiHelper($apiUrl)
+    protected function initMediaWikiHelper($actionName)
     {
+        /**
+         * Your MediaWiki API URL
+         *
+         * https://www.mediawiki.org/wiki/API:Data_formats
+         * https://www.mediawiki.org/wiki/API:Parsing_wikitext
+         **/
+        $apiUrl = getenv('MEDIAWIKI_API_ORIGIN').'/w/api.php?action=';
+
+        switch ($actionName) {
+            case 'parse':
+                $apiUrl .= 'parse&pst=1&utf8=&prop=indicators|text|templates|categories|links|displaytitle';
+                $apiUrl .= '&disabletoc=true&disablepp=true&disableeditsection=true&preview=true&format=json&page=';
+                break;
+            case 'purge':
+                $apiUrl .= 'purge&title=';
+                break;
+        }
         // Let’s use the Converter makeRequest() helper.
         $this->apiHelper = new MediaWikiHelper($apiUrl);
     }

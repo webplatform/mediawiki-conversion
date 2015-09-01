@@ -70,12 +70,11 @@ DESCR;
 
         $this->loadMissed(DATA_DIR.'/missed.yml');
 
-        $apiUrl = getenv('MEDIAWIKI_API_ORIGIN').'/w/index.php?action=purge&title=';
-        $this->initMediaWikiHelper($apiUrl);
+        $this->initMediaWikiHelper('purge');
 
         $xmlSource = $input->getOption('xml-source');
 
-        $output->writeln(sprintf('Sending purge to %s:', $apiUrl));
+        $output->writeln(sprintf('Sending purge to %s:', $this->apiHelper->getHelperEndpoint()));
 
         $streamer = $this->sourceXmlStreamFactory(DATA_DIR.'/'.$xmlSource);
         while ($node = $streamer->getNode()) {
@@ -99,7 +98,7 @@ DESCR;
                 }
                 if (empty($purgeCall)) {
                     $message = 'Refresh call did not work, we expected a HTML and got nothing, check at %s%s gives from a web browser';
-                    throw new Exception(sprintf($message, $apiUrl, $title));
+                    throw new Exception(sprintf($message, $this->apiHelper->getHelperEndpoint(), $title));
                 }
 
                 $output->writeln(' - '.$title);

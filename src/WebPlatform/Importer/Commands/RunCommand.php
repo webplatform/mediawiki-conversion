@@ -114,22 +114,10 @@ DESCR;
         }
 
         if ($passNbr === 3) {
-
-            /*
-             * Your MediaWiki API URL
-             *
-             * https://www.mediawiki.org/wiki/API:Data_formats
-             * https://www.mediawiki.org/wiki/API:Parsing_wikitext
-             **/
-            $apiUrl = getenv('MEDIAWIKI_API_ORIGIN').'/w/api.php?action=parse&pst=1&utf8=';
-            $apiUrl .= '&prop=indicators|text|templates|categories|links|displaytitle';
-            $apiUrl .= '&disabletoc=true&disablepp=true&disableeditsection=true&preview=true&format=json&page=';
-
             // We are at conversion pass, instantiate our Converter!
             // instanceof WebPlatform\ContentConverter\Converter\ConverterInterface
             $this->converter = new MediaWikiToHtml();
-            // instanceof ApiRequestHelperInterface
-            $this->initMediaWikiHelper($apiUrl);
+            $this->initMediaWikiHelper('parse');
         }
 
         $this->loadUsers(DATA_DIR.'/users.json');

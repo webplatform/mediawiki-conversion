@@ -49,6 +49,8 @@ DESCR;
     {
         parent::execute($input, $output);
 
+        $this->initMediaWikiHelper('parse');
+
         $xmlSource = $input->getOption('xml-source');
         $listMissed = $input->getOption('missed');
 
@@ -59,17 +61,6 @@ DESCR;
         $this->loadMissed(DATA_DIR.'/missed.yml');
 
         $ids = [];
-
-        /*
-         * Your MediaWiki API URL
-         *
-         * https://www.mediawiki.org/wiki/API:Data_formats
-         * https://www.mediawiki.org/wiki/API:Parsing_wikitext
-         **/
-        $apiUrl = getenv('MEDIAWIKI_API_ORIGIN').'/w/api.php?action=parse&pst=1&utf8=';
-        $apiUrl .= '&prop=indicators|text|templates|categories|links|displaytitle';
-        $apiUrl .= '&disabletoc=true&disablepp=true&disableeditsection=true&preview=true&format=json&page=';
-        $this->initMediaWikiHelper($apiUrl);
 
         $output->writeln('Warming cache:');
 
@@ -103,11 +94,13 @@ DESCR;
                 }
 
                 $wikiDocument = new MediaWikiDocument($pageNode);
+                $previous_location = (isset($normalized_location))?$normalized_location:'';
                 $normalized_location = $wikiDocument->getName();
                 $id = $wikiDocument->getId();
 
                 if (in_array($id, array_keys($ids))) {
-                    throw new Exception('What is wrong with you MW!?');
+                    $text = 'We got an unexpected situation, two wiki pages has the same id. The wiki page "%s" with id %d, has same as "%s"';
+                    throw new Exception(sprintf($text, $previous_location, $id, $normalized_location));
                 }
 
                 $ids[$id] = $normalized_location;
