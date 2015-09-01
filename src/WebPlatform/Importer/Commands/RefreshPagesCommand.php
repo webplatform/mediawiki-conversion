@@ -7,6 +7,7 @@ namespace WebPlatform\Importer\Commands;
 
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use WebPlatform\Importer\Model\MediaWikiDocument;
 use SimpleXMLElement;
 use Exception;
@@ -59,7 +60,14 @@ class RefreshPagesCommand extends AbstractImporterCommand
 DESCR;
         $this
             ->setName('mediawiki:refresh-pages')
-            ->setDescription($description);
+            ->setDescription($description)
+            ->setDefinition(
+                [
+                    new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run through only them'),
+                    new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not make full run, limit to a maximum of pages', 0),
+                    new InputOption('resume-at', '', InputOption::VALUE_OPTIONAL, 'Resume run at a specific XML document index number ', 0),
+                ]
+            );
 
         parent::configure();
     }
@@ -68,27 +76,53 @@ DESCR;
     {
         parent::execute($input, $output);
 
-        $this->loadMissed(DATA_DIR.'/missed.yml');
-
         $this->initMediaWikiHelper('purge');
 
         $xmlSource = $input->getOption('xml-source');
+        $listMissed = $input->getOption('missed');
+
+        $maxHops = (int) $input->getOption('max-pages');   // Maximum number of pages we go through
+
+        $resumeAt = (int) $input->getOption('resume-at');
+
+        $this->loadMissed(DATA_DIR.'/missed.yml');
 
         $output->writeln(sprintf('Sending purge to %s:', $this->apiHelper->getHelperEndpoint()));
 
         $streamer = $this->sourceXmlStreamFactory(DATA_DIR.'/'.$xmlSource);
+        $counter = 0;
         while ($node = $streamer->getNode()) {
             $pageNode = new SimpleXMLElement($node);
             if (isset($pageNode->title)) {
+                ++$counter;
+                if ($maxHops > 0 && $maxHops === $counter - 1) {
+                    $output->writeln(sprintf(PHP_EOL.'Reached desired maximum of %d documents', $maxHops).PHP_EOL);
+                    break;
+                }
+
                 $wikiDocument = new MediaWikiDocument($pageNode);
-
                 $normalized_location = $wikiDocument->getName();
+                $title = $wikiDocument->getTitle();
 
-                if (!in_array($normalized_location, $this->missed)) {
+                /**
+                 * Handle interruption by telling where to resume work.
+                 *
+                 * This is useful if job stopped and you want to resume work back at a specific point.
+                 */
+                if ($counter < $resumeAt) {
                     continue;
                 }
 
-                $title = $wikiDocument->getTitle();
+                /**
+                 * This is when we want only to pass through files described in data/missed.yml
+                 *
+                 * Much useful if you want to make slow API requests and not run the import again.
+                 */
+                if ($listMissed === true && !in_array($normalized_location, $this->missed)) {
+                    continue;
+                }
+
+                $this->documentPurge($wikiDocument);
 
                 try {
                     $purgeCall = $this->apiRequest($title);
@@ -96,6 +130,8 @@ DESCR;
                     $message = 'Had issue with attempt to refresh page from MediaWiki for %s';
                     throw new Exception(sprintf($message, $title), 0, $e);
                 }
+
+
                 if (empty($purgeCall)) {
                     $message = 'Refresh call did not work, we expected a HTML and got nothing, check at %s%s gives from a web browser';
                     throw new Exception(sprintf($message, $this->apiHelper->getHelperEndpoint(), $title));

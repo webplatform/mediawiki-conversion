@@ -159,23 +159,13 @@ DESCR;
                 $revList = $wikiDocument->getRevisions();
                 $revLast = $wikiDocument->getLatest();
 
-                /*
+                /**
                  * This is when we want only to pass through files described in data/missed.yml
                  *
                  * Much useful if you want to make slow API requests and not run the import again.
                  */
                 if ($listMissed === true && !in_array($normalized_location, $this->missed)) {
                     continue;
-                }
-
-                /*
-                 * At 3rd pass, let’s not make API requests to documents we know are redirects
-                 * and therefore empty.
-                 */
-                if ($passNbr === 3 && $wikiDocument->hasRedirect() === false) {
-                    //$random = rand(2, 5);
-                    //$output->writeln(PHP_EOL.sprintf('--- sleep for %d to not break production ---', $random));
-                    //sleep($random);
                 }
 
                 $output->writeln(sprintf('"%s":', $title));

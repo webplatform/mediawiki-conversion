@@ -41,8 +41,8 @@ DESCR;
             ->setDefinition(
                 [
                     new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run a 3rd pass only for them'),
-                    new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit it to maximum of revisions per document ', 0),
-                    new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of documents', 0),
+                    new InputOption('max-revs', '', InputOption::VALUE_OPTIONAL, 'Do not make full run, limit it to maximum of revisions per document ', 0),
+                    new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not make full run, limit to a maximum of documents', 0),
                     new InputOption('namespace-prefix', '', InputOption::VALUE_OPTIONAL, 'If not against main MediaWiki namespace, set prefix (e.g. Meta) so we can create a git repo with all contents on root so that we can use export as a submodule.', false),
                     new InputOption('display-author', '', InputOption::VALUE_NONE, 'Display or not the author and email address (useful to hide info for public reports), defaults to false'),
                     new InputOption('indexes', '', InputOption::VALUE_NONE, 'Whether or not we display loop indexes'),
@@ -132,7 +132,7 @@ DESCR;
                 if ($wikiDocument->hasRedirect() === true) {
                     $output->writeln(sprintf('  - redirect_to: %s', $redirect_to));
                 } else {
-                    /*
+                    /**
                      * Gather what we can know from the location.
                      *
                      * Explode all parts in two separate arrays so we’ll be able to tell
@@ -174,7 +174,7 @@ DESCR;
                     // so we’ll give the first user instead.
                     $contributor_id = ($wikiRevision->getContributorId() === 0) ? 1 : $wikiRevision->getContributorId();
 
-                    /*
+                    /**
                      * Fix duplicates and merge them as only one.
                      *
                      * Please adjust to suit your own.

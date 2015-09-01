@@ -37,7 +37,7 @@ DESCR;
             ->setDefinition(
                 [
                     new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run through only them'),
-                    new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run full import, limit to a maximum of pages', 0),
+                    new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not make full run, limit to a maximum of pages', 0),
                     new InputOption('resume-at', '', InputOption::VALUE_OPTIONAL, 'Resume run at a specific XML document index number ', 0),
                 ]
             );
@@ -75,7 +75,12 @@ DESCR;
                     break;
                 }
 
-                /*
+                $wikiDocument = new MediaWikiDocument($pageNode);
+                $previous_location = (isset($normalized_location))?$normalized_location:'';
+                $normalized_location = $wikiDocument->getName();
+                $id = $wikiDocument->getId();
+
+                /**
                  * Handle interruption by telling where to resume work.
                  *
                  * This is useful if job stopped and you want to resume work back at a specific point.
@@ -84,7 +89,7 @@ DESCR;
                     continue;
                 }
 
-                /*
+                /**
                  * This is when we want only to pass through files described in data/missed.yml
                  *
                  * Much useful if you want to make slow API requests and not run the import again.
@@ -92,11 +97,6 @@ DESCR;
                 if ($listMissed === true && !in_array($normalized_location, $this->missed)) {
                     continue;
                 }
-
-                $wikiDocument = new MediaWikiDocument($pageNode);
-                $previous_location = (isset($normalized_location))?$normalized_location:'';
-                $normalized_location = $wikiDocument->getName();
-                $id = $wikiDocument->getId();
 
                 if (in_array($id, array_keys($ids))) {
                     $text = 'We got an unexpected situation, two wiki pages has the same id. The wiki page "%s" with id %d, has same as "%s"';
