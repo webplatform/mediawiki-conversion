@@ -5,22 +5,26 @@
  */
 namespace WebPlatform\Importer\Commands;
 
-use WebPlatform\ContentConverter\Model\MediaWikiContributor;
-use WebPlatform\ContentConverter\Helpers\MediaWikiHelper;
-use WebPlatform\ContentConverter\Helpers\YamlHelper;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Filesystem\Filesystem;
+use WebPlatform\ContentConverter\Model\MediaWikiApiResponseArray;
+use WebPlatform\ContentConverter\Model\MediaWikiContributor;
+use WebPlatform\ContentConverter\Helpers\YamlHelper;
+use WebPlatform\Importer\Helpers\MediaWikiHelper;
+use WebPlatform\Importer\Model\MediaWikiDocument;
 use Prewk\XmlStringStreamer;
 use RuntimeException;
+use Exception;
 
 /**
  * Common importer command methods.
  *
  * @author Renoir Boulanger <hello@renoirboulanger.com>
  */
-class AbstractImporterCommand extends Command
+abstract class AbstractImporterCommand extends Command
 {
     /** @var WebPlatform\ContentConverter\Helpers\ApiRequestHelperInterface Conversion helper instance */
     protected $apiHelper;
@@ -37,14 +41,21 @@ class AbstractImporterCommand extends Command
 
     protected function configure()
     {
-        $helpText  = 'What file to read from. Argument is relative from data/ ';
+        $helpText = 'What file to read from. Argument is relative from data/ ';
         $helpText .= 'folder from this directory (e.g. dumps/wpd_full.xml, would read from data/dumps/foo.xml)';
 
         $this->addOption('xml-source', '', InputOption::VALUE_OPTIONAL, $helpText, 'dumps/main_full.xml');
     }
 
+    protected function execute(InputInterface $input, OutputInterface $output)
+    {
+        $this->yaml = new YamlHelper();
+        $this->filesystem = new Filesystem();
+        $this->initCookieString();
+    }
+
     /**
-     * Source XML file read stream factory
+     * Source XML file read stream factory.
      *
      * @param string $xmlSourcePath path where the XML file should be read from, relative to DATA_DIR
      *
@@ -62,7 +73,7 @@ class AbstractImporterCommand extends Command
     }
 
     /**
-     * Load Authors
+     * Load Authors.
      *
      * Author array of MediaWikiContributor objects with $this->users[$uid],
      * where $uid is MediaWiki user_id.
@@ -88,6 +99,16 @@ class AbstractImporterCommand extends Command
         /* -------------------- /Author -------------------- **/
     }
 
+    private function load($loadFilePath)
+    {
+        if (realpath($loadFilePath) === false) {
+            $message = 'Could not find file at %s';
+            throw new RuntimeException(sprintf($message, $loadFilePath));
+        }
+
+        return file_get_contents($loadFilePath);
+    }
+
     protected function loadMissed($missedNormalizedTitlesSource)
     {
         if (realpath($missedNormalizedTitlesSource) === false) {
@@ -111,6 +132,44 @@ class AbstractImporterCommand extends Command
         $this->missed = $missed['missed'];
     }
 
+    protected function initMediaWikiHelper($apiUrl)
+    {
+        // Let’s use the Converter makeRequest() helper.
+        $this->apiHelper = new MediaWikiHelper($apiUrl);
+    }
+
+    protected function apiRequest($title)
+    {
+        $cookieString = $this->cookieString;
+
+        return $this->apiHelper->makeRequest($title, $cookieString);
+    }
+
+    protected function fetchDocument(MediaWikiDocument $wikiDocument)
+    {
+        $title = $wikiDocument->getTitle();
+        $id = $wikiDocument->getId();
+
+        $cacheDir = sprintf('%s/cache', DATA_DIR);
+        $cacheFile = sprintf('%s/%d.json', $cacheDir, $id);
+
+        if ($this->filesystem->exists($cacheFile) === false) {
+            if ($this->filesystem->exists($cacheDir) === false) {
+                $this->filesystem->mkdir($cacheDir);
+            }
+
+            $obj = $this->apiHelper->retrieve($title, $this->cookieString);
+            $this->filesystem->dumpFile($cacheFile, json_encode($obj));
+            //echo '  - Made an API Call'; // DEBUG
+        } else {
+            $contents = file_get_contents($cacheFile);
+            $obj = new MediaWikiApiResponseArray($contents);
+            //echo '  - DID NOT made an API Call'; // DEBUG
+        }
+
+        return $obj;
+    }
+
     private function initCookieString()
     {
         if (
@@ -132,32 +191,5 @@ class AbstractImporterCommand extends Command
         }
 
         $this->cookieString = $cookieString;
-    }
-
-    protected function initMediaWikiHelper($apiUrl)
-    {
-        // Let’s use the Converter makeRequest() helper.
-        $this->apiHelper = new MediaWikiHelper($apiUrl);
-    }
-
-    protected function apiRequest($title)
-    {
-        $cookieString = $this->cookieString;
-
-        return $this->apiHelper->makeRequest($title, $cookieString);
-    }
-
-    protected function apiMediaWikiResponseArrayFactory($title)
-    {
-        $cookieString = $this->cookieString;
-
-        return $this->apiHelper->retrieve($title, $cookieString);
-    }
-
-    protected function init(InputInterface $input)
-    {
-        $this->yaml = new YamlHelper();
-        $this->filesystem = new Filesystem();
-        $this->initCookieString();
     }
 }

@@ -9,7 +9,7 @@ use WebPlatform\ContentConverter\Converter\MediaWikiToHtml as BaseConverter;
 use WebPlatform\ContentConverter\Converter\ConverterInterface;
 use WebPlatform\ContentConverter\Model\AbstractRevision;
 use WebPlatform\ContentConverter\Model\MediaWikiRevision;
-use WebPlatform\ContentConverter\Model\MarkdownRevision;
+use WebPlatform\ContentConverter\Model\HtmlRevision;
 use GlHtml\GlHtml;
 use Exception;
 
@@ -29,6 +29,10 @@ class MediaWikiToHtml extends BaseConverter implements ConverterInterface
 {
     /**
      * Apply Wikitext rewrites.
+     *
+     * Notice we purposefully NOT extend parent::apply(), nor enforce
+     * $revision instanceof MediaWikiRevision because we’ll send back
+     * the HtmlRevision object self::factory gives us
      *
      * @param AbstractRevision $revision Input we want to transfer into Markdown
      *
@@ -112,9 +116,9 @@ class MediaWikiToHtml extends BaseConverter implements ConverterInterface
                     //$dataMetasBody = '';
 
                     $metaName = $tag->getDOMNode()->parentNode->getAttribute('data-meta');
-                    $obj = ['content'=> $tag->getHtml(), 'name'=> $metaName];
+                    $obj = ['content' => $tag->getHtml(), 'name' => $metaName];
                     var_dump($obj);
-                    
+
                     /*
                     if (isset($dataNodeObj->tagName) && $dataNodeObj->tagName !== 'span') {
                         echo 'Is NOT a Span. Dig deeper.'.PHP_EOL;
@@ -133,7 +137,7 @@ class MediaWikiToHtml extends BaseConverter implements ConverterInterface
 
                     //if (is_string($dataNodeObj->nextSibling) && $dataNodeObj->childNodes === null) {
                     //    echo 'case 1'.PHP_EOL;
-                        /**
+                        /*
                          * When we have text directly in the node
                          *
                          *
@@ -169,7 +173,7 @@ class MediaWikiToHtml extends BaseConverter implements ConverterInterface
                     //} elseif ($dataNodeObj->childNodes !== null && count($dataNodeObj->childNodes) > 1) {
                     //    echo 'case 2'.PHP_EOL;
 
-                        /**
+                        /*
                          * When we have nested italic.
                          *
                          * We want internal value "apis/web-storage/Storage";
@@ -242,7 +246,7 @@ class MediaWikiToHtml extends BaseConverter implements ConverterInterface
 
             $matter_rev = $revision->getFrontMatterData();
 
-            $newRev = new MarkdownRevision($content, array_merge($matter_rev, $matter_local));
+            $newRev = new HtmlRevision($content, array_merge($matter_rev, $matter_local));
 
             return $newRev->setTitle($revision->getTitle());
         }

@@ -12,9 +12,14 @@ namespace WebPlatform\ContentConverter\Model;
  */
 class HtmlRevision extends AbstractRevision
 {
-    public function __construct($content = '')
+    public function __construct(MediaWikiApiResponseArray $obj)
     {
+        $content = $obj->getHtmlString();
+        $title = $obj->getTitle();
+
         $this->setContent($content);
+        $this->setTitle($title);
+
         $datetime = new DateTime();
         $datetime->setTimezone(new DateTimeZone('Etc/UTC'));
         $this->setTimestamp($datetime);

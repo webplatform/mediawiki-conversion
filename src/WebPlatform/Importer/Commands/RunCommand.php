@@ -10,19 +10,17 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputArgument;
 use Bit3\GitPhp\GitException;
-use WebPlatform\Importer\GitPhp\GitRepository;
-use WebPlatform\Importer\Model\MediaWikiDocument;
-
-//use WebPlatform\Importer\Converter\MediaWikiToHtml;
-use WebPlatform\ContentConverter\Converter\MediaWikiToHtml;
-use WebPlatform\ContentConverter\Model\MediaWikiApiResponseArray;
-
-use WebPlatform\Importer\Filter\TitleFilter;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
+use WebPlatform\ContentConverter\Model\MediaWikiApiResponseArray;
+use WebPlatform\ContentConverter\Model\HtmlRevision;
+use WebPlatform\Importer\Converter\MediaWikiToHtml;
+use WebPlatform\Importer\Model\MediaWikiDocument;
+use WebPlatform\Importer\GitPhp\GitRepository;
+use WebPlatform\Importer\Filter\TitleFilter;
 use SplDoublyLinkedList;
 use SimpleXMLElement;
-use Exception;
 use DomainException;
+use Exception;
 
 /**
  * Read and create a summary from a MediaWiki dumpBackup XML file.
@@ -87,7 +85,7 @@ DESCR;
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->init($input);
+        parent::execute($input, $output);
 
         $passNbr = (int) $input->getArgument('pass');
 
@@ -143,15 +141,14 @@ DESCR;
         while ($node = $streamer->getNode()) {
             $pageNode = new SimpleXMLElement($node);
             if (isset($pageNode->title)) {
-
-                $counter++;
-                if ($maxHops > 0 && $maxHops === $counter) {
+                ++$counter;
+                if ($maxHops > 0 && $maxHops === $counter - 1) {
                     $output->writeln(sprintf('Reached desired maximum of %d documents', $maxHops).PHP_EOL);
                     break;
                 }
 
                 /*
-                 * 3rd pass, handle interruption by telling where to resume work.
+                 * Handle interruption by telling where to resume work.
                  *
                  * This is useful if job stopped and you want to resume work back at a specific point.
                  */
@@ -174,7 +171,7 @@ DESCR;
                 $revList = $wikiDocument->getRevisions();
                 $revLast = $wikiDocument->getLatest();
 
-                /**
+                /*
                  * This is when we want only to pass through files described in data/missed.yml
                  *
                  * Much useful if you want to make slow API requests and not run the import again.
@@ -183,17 +180,18 @@ DESCR;
                     continue;
                 }
 
-                /**
+                /*
                  * At 3rd pass, let’s not make API requests to documents we know are redirects
                  * and therefore empty.
                  */
                 if ($passNbr === 3 && $wikiDocument->hasRedirect() === false) {
-                    $random = rand(2, 5);
-                    $output->writeln(PHP_EOL.sprintf('--- sleep for %d to not break production ---', $random));
-                    sleep($random);
+                    //$random = rand(2, 5);
+                    //$output->writeln(PHP_EOL.sprintf('--- sleep for %d to not break production ---', $random));
+                    //sleep($random);
                 }
 
                 $output->writeln(sprintf('"%s":', $title));
+                $output->writeln(sprintf('  - id: %d', $wikiDocument->getId()));
                 $output->writeln(sprintf('  - index: %d', $counter));
                 $output->writeln(sprintf('  - normalized: %s', $normalized_location));
                 $output->writeln(sprintf('  - file: %s', $file_path));
@@ -250,7 +248,7 @@ DESCR;
                 /* ----------- REVISIONS --------------- **/
                 $revCounter = 0;
                 for ($revList->rewind(); $revList->valid(); $revList->next()) {
-                    $revCounter++;
+                    ++$revCounter;
 
                     if ($revMaxHops > 0 && $revMaxHops === $revCounter) {
                         $output->writeln(sprintf('    - stop: Reached maximum %d revisions', $revMaxHops).PHP_EOL.PHP_EOL);
@@ -291,9 +289,8 @@ DESCR;
 
                     // Lets handle conversion only at 3rd pass.
                     if ($passNbr === 3) {
-
                         try {
-                            /**
+                            /*
                              * We are at third pass and in this case we got to
                              * create a revision. The author is therefore the person
                              * who’s running the script. Let’s define it.
@@ -301,14 +298,14 @@ DESCR;
                             $contributor_id = getenv('MEDIAWIKI_USERID');
                             $contributor = clone $this->users[$contributor_id]; // We want a copy, because its specific to here only anyway.
 
-                            /** @var MediaWikiApiResponseArray object to work with */
-                            $respObj = $this->apiMediaWikiResponseArrayFactory($title);
-                            $revision = $this->converter->prepare($respObj);
+                            /* @var MediaWikiApiResponseArray object to work with */
+                            $respObj = $this->fetchDocument($wikiDocument);
+                            $revision = new HtmlRevision($respObj);
                             $revision->setTitle($wikiDocument->getLastTitleFragment());
                         } catch (Exception $e) {
                             $output->writeln(sprintf('    - ERROR: %s, left a note in errors/%d.txt', $e->getMessage(), $counter));
                             $this->filesystem->dumpFile(sprintf('errors/%d.txt', $counter), $e->getMessage());
-                            //throw new Exception('Debugging why API call did not work.', 0, $e); // DEBUG
+                            throw new Exception('Debugging why API call did not work.', 0, $e); // DEBUG
                             continue;
                         }
 

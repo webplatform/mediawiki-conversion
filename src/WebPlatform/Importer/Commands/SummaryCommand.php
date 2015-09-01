@@ -6,14 +6,11 @@
 namespace WebPlatform\Importer\Commands;
 
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
-use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputInterface;
 use WebPlatform\Importer\Model\MediaWikiDocument;
 use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Command\Command;
 use WebPlatform\Importer\Filter\TitleFilter;
-use Prewk\XmlStringStreamer;
 use SimpleXMLElement;
 use Exception;
 
@@ -57,7 +54,7 @@ DESCR;
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->init($input);
+        parent::execute($input, $output);
 
         $xmlSource = $input->getOption('xml-source');
         $listMissed = $input->getOption('missed');
@@ -72,6 +69,7 @@ DESCR;
         $redirects = [];
         $pages = [];
         $urlParts = [];
+        $urlPartsAll = [];
         $missedIndexes = [];
 
         $urlsWithContent = [];
@@ -99,9 +97,8 @@ DESCR;
         while ($node = $streamer->getNode()) {
             $pageNode = new SimpleXMLElement($node);
             if (isset($pageNode->title)) {
-
-                $counter++;
-                if ($maxHops > 0 && $maxHops === $counter) {
+                ++$counter;
+                if ($maxHops > 0 && $maxHops === $counter - 1) {
                     $output->writeln(sprintf('Reached desired maximum of %d documents', $maxHops).PHP_EOL);
                     break;
                 }
@@ -135,7 +132,7 @@ DESCR;
                 if ($wikiDocument->hasRedirect() === true) {
                     $output->writeln(sprintf('  - redirect_to: %s', $redirect_to));
                 } else {
-                    /**
+                    /*
                      * Gather what we can know from the location.
                      *
                      * Explode all parts in two separate arrays so we’ll be able to tell
@@ -163,7 +160,7 @@ DESCR;
                 /* ----------- REVISION --------------- **/
                 $revCounter = 0;
                 for ($revList->rewind(); $revList->valid(); $revList->next()) {
-                    $revCounter++;
+                    ++$revCounter;
 
                     if ($revMaxHops > 0 && $revMaxHops === $revCounter) {
                         $output->writeln(sprintf('    - stop: Reached maximum %d revisions', $revMaxHops).PHP_EOL.PHP_EOL);
@@ -292,9 +289,7 @@ DESCR;
                 }
 
                 $output->writeln(PHP_EOL.PHP_EOL);
-
             } /* End of if (isset($pageNode->title)) */
-
         } /* End of while ($node = $streamer->getNode()) */
 
         /*

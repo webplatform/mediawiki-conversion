@@ -16,7 +16,6 @@ use WebPlatform\ContentConverter\Model\HtmlRevision;
  */
 class HtmlToMarkdown implements ConverterInterface
 {
-
     /**
      * Apply Wikitext rewrites.
      *
@@ -27,7 +26,6 @@ class HtmlToMarkdown implements ConverterInterface
     public function apply(AbstractRevision $revision)
     {
         if ($revision instanceof HtmlRevision) {
-
         }
 
         return $revision;

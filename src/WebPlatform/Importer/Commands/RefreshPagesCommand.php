@@ -66,7 +66,8 @@ DESCR;
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->init($input);
+        parent::execute($input, $output);
+
         $this->loadMissed(DATA_DIR.'/missed.yml');
 
         $apiUrl = getenv('MEDIAWIKI_API_ORIGIN').'/w/index.php?action=purge&title=';
@@ -78,7 +79,6 @@ DESCR;
 
         $streamer = $this->sourceXmlStreamFactory(DATA_DIR.'/'.$xmlSource);
         while ($node = $streamer->getNode()) {
-
             $pageNode = new SimpleXMLElement($node);
             if (isset($pageNode->title)) {
                 $wikiDocument = new MediaWikiDocument($pageNode);
