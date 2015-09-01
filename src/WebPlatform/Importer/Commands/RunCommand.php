@@ -108,6 +108,9 @@ DESCR;
         }
 
         $repoInitialized = (realpath(GIT_OUTPUT_DIR.'/.git') === false) ? false : true;
+        if ($this->filesystem->exists(GIT_OUTPUT_DIR) === false) {
+            $this->filesystem->mkdir(GIT_OUTPUT_DIR);
+        }
         $this->git = new GitRepository(realpath(GIT_OUTPUT_DIR));
         if ($repoInitialized === false) {
             $this->git->init()->execute();
@@ -277,7 +280,7 @@ DESCR;
                             $contributor = clone $this->users[$contributor_id]; // We want a copy, because its specific to here only anyway.
 
                             /* @var MediaWikiApiResponseArray object to work with */
-                            $respObj = $this->fetchDocument($wikiDocument);
+                            $respObj = $this->documentFetch($wikiDocument);
                             $revision = new HtmlRevision($respObj);
                             $revision->setTitle($wikiDocument->getLastTitleFragment());
                         } catch (Exception $e) {

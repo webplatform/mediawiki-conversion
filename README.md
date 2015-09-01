@@ -147,11 +147,31 @@ to get the parser to give us the generated HTML at the 3rd pass.
   app/console mediawiki:run 2
   ```
 
+1. **Third pass and caching**
+
+  The third pass is the most time consuming step. The importer will make an HTTP request to a MediaWiki endpoint
+  for each wiki page to get HTML.
+
+  To help speed up, you can create a cached copy of the output from MediaWiki Parser API.
+  Each cached copy will be written into `out/.cache/0.json` where `0` stands for the wiki document id.
+
+  You can "warm up" the cache by doing like this
+
+      app/console mediawiki:cache-warmer
+
+  If you updated a wiki page since a previous `mediawiki:cache-warmer` or `mediawiki:run 3` run,
+  you’ll have to delete the cached file.
+
+  If a cached file doesn’t exist, either `cache-warmer` or `mediawiki:run 3` pass will create another one automatically.
+
 
 1. **Run third pass**
 
   This is the most time consuming pass. It’ll make a request to retrieve the HTML output of the current
   latest revision of every wiki page through MediaWiki’s internal Parser API, see [MediaWiki Parsing Wikitext][action-parser-docs].
+
+  In order to save time, the 3rd pass creates a local copy of the contents from the API so that we don’t make
+  HTTP calls to MediaWiki.
 
   At this pass you can *resume-at* if your script had been interrupted.
 
@@ -282,6 +302,12 @@ to get the parser to give us the generated HTML at the 3rd pass.
   app/console mediawiki:summary --xml-source=dumps/wpd_full.xml --namespace-prefix=WPD > reports/summary_wpd.yml
   app/console mediawiki:run 1 --xml-source=dumps/wpd_full.xml --namespace-prefix=WPD > run_wpd.log
   app/console mediawiki:run 2 --xml-source=dumps/wpd_full.xml --namespace-prefix=WPD >> run_wpd.log
+  ```
+
+  At this point we have all contents from the XML edits converted into commits in a new git repository.
+
+  ```
+  app/console mediawiki:cache-warmer --xml-source=dumps/wpd_full.xml
   app/console mediawiki:run 3 --xml-source=dumps/wpd_full.xml --namespace-prefix=WPD >> run_wpd.log
   ```
 

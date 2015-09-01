@@ -119,6 +119,7 @@ DESCR;
                 $revLast = $wikiDocument->getLatest();
 
                 $output->writeln(sprintf('"%s":', $title));
+                $output->writeln(sprintf('  - id: %d', $wikiDocument->getId()));
                 if ($displayIndex === true) {
                     $output->writeln(sprintf('  - index: %d', $counter));
                 }

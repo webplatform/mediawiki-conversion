@@ -38,7 +38,6 @@ DESCR;
                 [
                     new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run through only them'),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not make full run, limit to a maximum of pages', 0),
-                    new InputOption('resume-at', '', InputOption::VALUE_OPTIONAL, 'Resume run at a specific XML document index number ', 0),
                 ]
             );
 
@@ -55,8 +54,6 @@ DESCR;
         $listMissed = $input->getOption('missed');
 
         $maxHops = (int) $input->getOption('max-pages');   // Maximum number of pages we go through
-
-        $resumeAt = (int) $input->getOption('resume-at');
 
         $this->loadMissed(DATA_DIR.'/missed.yml');
 
@@ -81,11 +78,10 @@ DESCR;
                 $id = $wikiDocument->getId();
 
                 /**
-                 * Handle interruption by telling where to resume work.
-                 *
-                 * This is useful if job stopped and you want to resume work back at a specific point.
+                 * Do not make API requests to a wiki page that is known
+                 * to be deleted or has a redirect.
                  */
-                if ($counter < $resumeAt) {
+                if ($wikiDocument->hasRedirect() === true) {
                     continue;
                 }
 
@@ -106,7 +102,7 @@ DESCR;
                 $ids[$id] = $normalized_location;
 
                 $output->writeln(sprintf('  - %d: %s', $id, $normalized_location));
-                $this->fetchDocument($wikiDocument);
+                $this->documentFetch($wikiDocument);
             }
         }
     }
