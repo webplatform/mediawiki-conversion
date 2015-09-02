@@ -15,6 +15,7 @@ use WebPlatform\ContentConverter\Model\MediaWikiApiResponseArray;
 use WebPlatform\ContentConverter\Model\HtmlRevision;
 use WebPlatform\Importer\Converter\MediaWikiToHtml;
 use WebPlatform\Importer\Model\MediaWikiDocument;
+use WebPlatform\ContentConverter\Model\Author;
 use WebPlatform\Importer\GitPhp\GitRepository;
 use WebPlatform\Importer\Filter\TitleFilter;
 use SplDoublyLinkedList;
@@ -121,9 +122,10 @@ DESCR;
             // instanceof WebPlatform\ContentConverter\Converter\ConverterInterface
             $this->converter = new MediaWikiToHtml();
             $this->initMediaWikiHelper('parse');
+        } else {
+            $this->loadUsers(DATA_DIR.'/users.json');
         }
 
-        $this->loadUsers(DATA_DIR.'/users.json');
 
         $this->titleFilter = new TitleFilter();
 
@@ -257,28 +259,11 @@ DESCR;
                     if (in_array($contributor_id, [172943, 173060, 173278, 173275, 173252, 173135, 173133, 173087, 173086, 173079, 173059, 173058, 173057])) {
                         $contributor_id = getenv('MEDIAWIKI_USERID');
                     }
-
-                    if (isset($this->users[$contributor_id])) {
-                        $contributor = clone $this->users[$contributor_id]; // We want a copy, because its specific to here only anyway.
-                        $wikiRevision->setContributor($contributor, false);
-                    } else {
-                        // In case we didn’t find data for $this->users[$contributor_id]
-                        $contributor = clone $this->users[1]; // We want a copy, because its specific to here only anyway.
-                        $wikiRevision->setContributor($contributor, false);
-                    }
                     /* -------------------- /Author -------------------- **/
 
                     // Lets handle conversion only at 3rd pass.
                     if ($passNbr === 3) {
                         try {
-                            /*
-                             * We are at third pass and in this case we got to
-                             * create a revision. The author is therefore the person
-                             * who’s running the script. Let’s define it.
-                             */
-                            $contributor_id = getenv('MEDIAWIKI_USERID');
-                            $contributor = clone $this->users[$contributor_id]; // We want a copy, because its specific to here only anyway.
-
                             /* @var MediaWikiApiResponseArray object to work with */
                             $respObj = $this->documentFetch($wikiDocument);
                             $revision = new HtmlRevision($respObj);
@@ -290,9 +275,18 @@ DESCR;
                             continue;
                         }
 
-                        $revision->setAuthor($contributor);
+                        $revision->setAuthor(new Author(), false);
                         $revision_id = $revLast->getId();
                     } else {
+                        if (isset($this->users[$contributor_id])) {
+                            $contributor = clone $this->users[$contributor_id]; // We want a copy, because its specific to here only anyway.
+                            $wikiRevision->setContributor($contributor, false);
+                        } else {
+                            // In case we didn’t find data for $this->users[$contributor_id]
+                            $contributor = clone $this->users[1]; // We want a copy, because its specific to here only anyway.
+                            $wikiRevision->setContributor($contributor, false);
+                        }
+
                         $revision = $wikiRevision;
                         $revision_id = $wikiRevision->getId();
                         $output->writeln(sprintf('    - id: %d', $revision_id));
