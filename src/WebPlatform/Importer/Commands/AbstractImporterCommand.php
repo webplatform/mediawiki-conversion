@@ -96,7 +96,6 @@ abstract class AbstractImporterCommand extends Command
             $this->users[$uid] = new MediaWikiContributor($u);
             unset($u); // Dont fill too much memory, if that helps.
         }
-        /* -------------------- /Author -------------------- **/
     }
 
     private function load($loadFilePath)
@@ -190,11 +189,10 @@ abstract class AbstractImporterCommand extends Command
 
             $obj = $this->apiHelper->retrieve($title, $this->cookieString);
             $this->filesystem->dumpFile($cacheFile, json_encode($obj));
-            //echo '  - Made an API Call'; // DEBUG
         } else {
             $contents = file_get_contents($cacheFile);
             $obj = new MediaWikiApiParseActionResponse($contents);
-            //echo '  - DID NOT made an API Call'; // DEBUG
+            $obj->toggleFromCache();
         }
 
         //var_dump($obj);

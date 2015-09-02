@@ -173,17 +173,17 @@ DESCR;
                 }
 
                 $output->writeln(sprintf('"%s":', $title));
-                $output->writeln(sprintf('  - id: %d', $wikiDocument->getId()));
-                $output->writeln(sprintf('  - index: %d', $counter));
-                $output->writeln(sprintf('  - normalized: %s', $normalized_location));
-                $output->writeln(sprintf('  - file: %s', $file_path));
+                $output->writeln(sprintf('  id: %d', $wikiDocument->getId()));
+                $output->writeln(sprintf('  index: %d', $counter));
+                $output->writeln(sprintf('  normalized: %s', $normalized_location));
+                $output->writeln(sprintf('  file: %s', $file_path));
 
                 if ($wikiDocument->isTranslation() === true) {
-                    $output->writeln(sprintf('  - lang: %s (%s)', $language_code, $language_name));
+                    $output->writeln(sprintf('  lang: %s (%s)', $language_code, $language_name));
                 }
 
                 if ($wikiDocument->hasRedirect() === true) {
-                    $output->writeln(sprintf('  - redirect_to: %s', $redirect_to));
+                    $output->writeln(sprintf('  redirect_to: %s', $redirect_to));
                 }
 
                 /*
@@ -195,15 +195,15 @@ DESCR;
                  */
                 if ($wikiDocument->hasRedirect() === false && $passNbr === 1) {
                     // Skip all NON redirects for pass 1
-                    $output->writeln(sprintf('  - skip: Document %s WITHOUT redirect, at pass 1 (handling redirects)', $title).PHP_EOL.PHP_EOL);
+                    $output->writeln(sprintf('  skip: Document %s WITHOUT redirect, at pass 1 (handling redirects)', $title).PHP_EOL.PHP_EOL);
                     continue;
                 } elseif ($wikiDocument->hasRedirect() && $passNbr === 2) {
                     // Skip all redirects for pass 2
-                    $output->writeln(sprintf('  - skip: Document %s WITH redirect, at pass 2 (handling non redirects)', $title).PHP_EOL.PHP_EOL);
+                    $output->writeln(sprintf('  skip: Document %s WITH redirect, at pass 2 (handling non redirects)', $title).PHP_EOL.PHP_EOL);
                     continue;
                 } elseif ($wikiDocument->hasRedirect() && $passNbr === 3) {
                     // Skip all redirects for pass 2
-                    $output->writeln(sprintf('  - skip: Document %s WITH redirect, at pass 3', $title).PHP_EOL.PHP_EOL);
+                    $output->writeln(sprintf('  skip: Document %s WITH redirect, at pass 3', $title).PHP_EOL.PHP_EOL);
                     continue;
                 }
 
@@ -223,8 +223,8 @@ DESCR;
                     }
                     $revList->push($revLast);
                 } else {
-                    $output->writeln(sprintf('  - revs: %d', $revs));
-                    $output->writeln(sprintf('  - revisions:'));
+                    $output->writeln(sprintf('  revisions_count: %d', $revs));
+                    $output->writeln(sprintf('  revisions:'));
                 }
 
                 /* ----------- REVISIONS --------------- **/
@@ -233,7 +233,7 @@ DESCR;
                     ++$revCounter;
 
                     if ($revMaxHops > 0 && $revMaxHops === $revCounter) {
-                        $output->writeln(sprintf('    - stop: Reached maximum %d revisions', $revMaxHops).PHP_EOL.PHP_EOL);
+                        $output->writeln(sprintf('    stop: Reached maximum %d revisions', $revMaxHops).PHP_EOL.PHP_EOL);
                         break;
                     }
 
@@ -265,16 +265,24 @@ DESCR;
                         try {
                             /* @var MediaWikiApiParseActionResponse object to work with */
                             $respObj = $this->documentFetch($wikiDocument);
-                            $newRev = new HtmlRevision($respObj);
+
+                            $newRev = new HtmlRevision($respObj, true);
+                            $newRev->enableMarkdownConversion();
+
                             $newRev->setTitle($wikiDocument->getLastTitleFragment());
 
                             $wikiRevision = $this->converter->apply($newRev);
 
                         } catch (Exception $e) {
-                            $output->writeln(sprintf('    - ERROR: %s, left a note in errors/%d.txt', $e->getMessage(), $counter));
+                            $output->writeln(sprintf('    ERROR: %s, left a note in errors/%d.txt', $e->getMessage(), $counter));
                             $this->filesystem->dumpFile(sprintf('errors/%d.txt', $counter), $e->getMessage());
                             throw new Exception('Debugging why API call did not work.', 0, $e); // DEBUG
                             continue;
+                        }
+                        
+                        if ($respObj->isFromCache()) {
+                            // #XXX: Make sure AbstractImporterCommand has the same path as below
+                            $output->writeln(sprintf('  cached: %s', sprintf('out/.cache/%d.json', $wikiDocument->getId())));
                         }
 
                         $revision_id = $revLast->getId();
@@ -299,7 +307,7 @@ DESCR;
                             if ($argKey === 'message') {
                                 $argVal = mb_strimwidth($argVal, strpos($argVal, ': ') + 2, 100);
                             }
-                            $output->writeln(sprintf('      %s: %s', $argKey, $argVal));
+                            $output->writeln(sprintf('      %s: "%s"', $argKey, $argVal));
                         }
                     }
 
