@@ -11,13 +11,12 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputArgument;
 use Bit3\GitPhp\GitException;
 use WebPlatform\ContentConverter\Persistency\GitCommitFileRevision;
-use WebPlatform\ContentConverter\Model\MediaWikiApiResponseArray;
-use WebPlatform\ContentConverter\Model\HtmlRevision;
-use WebPlatform\Importer\Converter\MediaWikiToHtml;
+use WebPlatform\Importer\Model\MediaWikiApiParseActionResponse;
+use WebPlatform\Importer\Converter\HtmlToMarkdown;
 use WebPlatform\Importer\Model\MediaWikiDocument;
-use WebPlatform\ContentConverter\Model\Author;
 use WebPlatform\Importer\GitPhp\GitRepository;
 use WebPlatform\Importer\Filter\TitleFilter;
+use WebPlatform\Importer\Model\HtmlRevision;
 use SplDoublyLinkedList;
 use SimpleXMLElement;
 use DomainException;
@@ -120,7 +119,7 @@ DESCR;
         if ($passNbr === 3) {
             // We are at conversion pass, instantiate our Converter!
             // instanceof WebPlatform\ContentConverter\Converter\ConverterInterface
-            $this->converter = new MediaWikiToHtml();
+            $this->converter = new HtmlToMarkdown();
             $this->initMediaWikiHelper('parse');
         } else {
             $this->loadUsers(DATA_DIR.'/users.json');
@@ -264,10 +263,13 @@ DESCR;
                     // Lets handle conversion only at 3rd pass.
                     if ($passNbr === 3) {
                         try {
-                            /* @var MediaWikiApiResponseArray object to work with */
+                            /* @var MediaWikiApiParseActionResponse object to work with */
                             $respObj = $this->documentFetch($wikiDocument);
-                            $revision = new HtmlRevision($respObj);
-                            $revision->setTitle($wikiDocument->getLastTitleFragment());
+                            $newRev = new HtmlRevision($respObj);
+                            $newRev->setTitle($wikiDocument->getLastTitleFragment());
+
+                            $wikiRevision = $this->converter->apply($newRev);
+
                         } catch (Exception $e) {
                             $output->writeln(sprintf('    - ERROR: %s, left a note in errors/%d.txt', $e->getMessage(), $counter));
                             $this->filesystem->dumpFile(sprintf('errors/%d.txt', $counter), $e->getMessage());
@@ -275,7 +277,6 @@ DESCR;
                             continue;
                         }
 
-                        $revision->setAuthor(new Author(), false);
                         $revision_id = $revLast->getId();
                     } else {
                         if (isset($this->users[$contributor_id])) {
@@ -287,13 +288,12 @@ DESCR;
                             $wikiRevision->setContributor($contributor, false);
                         }
 
-                        $revision = $wikiRevision;
                         $revision_id = $wikiRevision->getId();
                         $output->writeln(sprintf('    - id: %d', $revision_id));
                         $output->writeln(sprintf('      index: %d', $revCounter));
                     }
 
-                    $persistArgs = $persistable->setRevision($revision)->getArgs();
+                    $persistArgs = $persistable->setRevision($wikiRevision)->getArgs();
                     if ($passNbr < 3) {
                         foreach ($persistArgs as $argKey => $argVal) {
                             if ($argKey === 'message') {
@@ -309,7 +309,7 @@ DESCR;
                         $removeFile = true;
                     }
 
-                    $persistable->setRevision($revision);
+                    $persistable->setRevision($wikiRevision);
                     $this->filesystem->dumpFile($file_path, (string) $persistable);
                     try {
                         $this->git

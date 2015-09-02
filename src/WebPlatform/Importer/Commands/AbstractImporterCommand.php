@@ -10,7 +10,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Filesystem\Filesystem;
-use WebPlatform\ContentConverter\Model\MediaWikiApiResponseArray;
+use WebPlatform\ContentConverter\Model\MediaWikiApiParseActionResponse;
 use WebPlatform\ContentConverter\Model\MediaWikiContributor;
 use WebPlatform\ContentConverter\Helpers\YamlHelper;
 use WebPlatform\Importer\Helpers\MediaWikiHelper;
@@ -193,7 +193,7 @@ abstract class AbstractImporterCommand extends Command
             //echo '  - Made an API Call'; // DEBUG
         } else {
             $contents = file_get_contents($cacheFile);
-            $obj = new MediaWikiApiResponseArray($contents);
+            $obj = new MediaWikiApiParseActionResponse($contents);
             //echo '  - DID NOT made an API Call'; // DEBUG
         }
 

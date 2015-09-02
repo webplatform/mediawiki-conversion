@@ -9,7 +9,7 @@ use WebPlatform\ContentConverter\Converter\MediaWikiToHtml as BaseConverter;
 use WebPlatform\ContentConverter\Converter\ConverterInterface;
 use WebPlatform\ContentConverter\Model\AbstractRevision;
 use WebPlatform\ContentConverter\Model\MediaWikiRevision;
-use WebPlatform\ContentConverter\Model\HtmlRevision;
+use WebPlatform\Importer\Model\HtmlRevision;
 use GlHtml\GlHtml;
 use Exception;
 
