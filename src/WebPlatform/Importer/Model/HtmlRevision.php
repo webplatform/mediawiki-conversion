@@ -194,20 +194,6 @@ class HtmlRevision extends AbstractRevision
                 $languageName = str_replace('language-', '', $className);
                 $codeSample->setAttribute('class', $languageName);
                 $codeSample->removeAttribute('data-lang');
-
-                //$codeContents = htmlentities(str_replace(array_keys($codeSampleTouchups), $codeSampleTouchups, $exampleNode->getHtml()));
-                //var_dump($codeContents);
-                //var_dump($codeSample->nodeValue);
-                //$codeContents = $codeSample->textContent;
-                //$code = htmlentities($codeSample->textContent);
-                //$codeSample->textContent = $code;
-                //$codeSampleParent = $codeSample->parentNode;
-                //$isInsideExampleParent = ($codeSampleParent->getAttribute('class') === "example")?true:false;
-                //$codeSample->setAttribute('foo', (($isInsideExampleParent === true)?'yes':'no'));
-                //if ($isInsideExampleParent) {
-                //    $codeSampleParentParent = $codeSample->parentNode->parentNode;
-                //    $codeSampleParentParent->replaceChild($codeSample, $codeSample->parentNode);
-                //}
             }
         }
         unset($codeSampleMatches);

@@ -7,7 +7,7 @@
     "require": {
         "webplatform/content-converter": "~1.2",
         "prewk/xml-string-streamer": "^0.7.1",
-        "pixel418/markdownify": "2.1.*",
+        "ryakad/pandoc-php": "~1.0",
         "glicer/simply-html": "~1.0",
         "symfony/filesystem": "~2.7",
         "vlucas/phpdotenv": "~2.0",
