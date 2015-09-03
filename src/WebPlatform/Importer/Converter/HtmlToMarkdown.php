@@ -23,7 +23,7 @@ class HtmlToMarkdown implements ConverterInterface
 
     protected $options = array(
         "from"  => "html",
-        "to"    => "markdown_github+blank_before_header+blank_before_blockquote",
+        "to"    => "markdown_github+blank_before_header+blank_before_blockquote+definition_lists",
         "atx-headers" => null,
         "parse-raw" => null,
         "no-highlight" => null,

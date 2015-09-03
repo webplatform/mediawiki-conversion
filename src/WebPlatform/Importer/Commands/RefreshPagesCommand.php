@@ -103,6 +103,7 @@ DESCR;
                 $wikiDocument = new MediaWikiDocument($pageNode);
                 $normalized_location = $wikiDocument->getName();
                 $title = $wikiDocument->getTitle();
+                $id = $wikiDocument->getId();
 
                 /**
                  * Handle interruption by telling where to resume work.
@@ -137,7 +138,7 @@ DESCR;
                     throw new Exception(sprintf($message, $this->apiHelper->getHelperEndpoint(), $title));
                 }
 
-                $output->writeln(' - '.$title);
+                $output->writeln(sprintf(' - %d: %s', $id, $title));
             }
         }
     }

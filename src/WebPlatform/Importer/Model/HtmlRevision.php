@@ -8,7 +8,9 @@ namespace WebPlatform\Importer\Model;
 use WebPlatform\ContentConverter\Model\AbstractRevision;
 use WebPlatform\ContentConverter\Model\MediaWikiApiParseActionResponse;
 use WebPlatform\ContentConverter\Model\MediaWikiContributor;
+use GlHtml\GlHtmlNode;
 use GlHtml\GlHtml;
+use UnexpectedValueException;
 
 /**
  * HTML Revision, with some cleanup.
@@ -126,11 +128,18 @@ class HtmlRevision extends AbstractRevision
             if (!empty($summary)) {
                 $this->metadata['summary'] = $summary;
                 $textNode = $summaryNode->ownerDocument->createTextNode($summary);
+                $summaryNode->parentNode->parentNode->appendChild($textNode);
             }
-            $summaryNode->parentNode->parentNode->appendChild($textNode);
             $summaryNode->parentNode->parentNode->removeChild($summaryNode->parentNode);
         }
         unset($documentSummaryMatches);
+
+        /**
+         * Remove "code" in `li > code > a` (later?)
+         *
+         * see: css/properties/border-radius
+         */
+        //$liCodeAnchorMatches = $pageDom->get('li > code > a');
 
         /**
          * Remove tagsoup in <a/> tags
@@ -163,7 +172,17 @@ class HtmlRevision extends AbstractRevision
                  * Thanks to MediaWiki, we know which ones goes outside of the wiki.
                  */
                 if (in_array('external', $classNames)) {
-                    $this->metadata['external_links'][] = $hrefAttribute;
+
+                    /**
+                     * If an external link has "View live example" in text, let's
+                     * move the link after the code sample.
+                     */
+                    if ($linkNode->textContent === "View live example") {
+                        $hrefAttribute = str_replace('code.webplatform.org/gist', 'gist.github.com', $hrefAttribute);
+                        $this->metadata['code_samples'][] = $hrefAttribute;
+                    } else {
+                        $this->metadata['external_links'][] = $hrefAttribute;
+                    }
                 }
 
                 /**
@@ -185,6 +204,24 @@ class HtmlRevision extends AbstractRevision
         }
         unset($linksMatches);
 
+        /**
+         * Some wiki pages pasted more than once the links, better clean it up.
+         */
+        if (isset($this->metadata['code_samples'])) {
+            $this->metadata['code_samples'] = array_unique($this->metadata['code_samples']);
+        }
+        if (isset($this->metadata['external_links'])) {
+            $this->metadata['external_links'] = array_unique($this->metadata['external_links']);
+        }
+
+        $codeSampleHeadingMatches = $pageDom->get('.example span.language');
+        if (count($codeSampleHeadingMatches) >= 1) {
+            foreach ($codeSampleHeadingMatches as $codeSampleHeading) {
+                $codeSampleHeading->delete();
+            }
+        }
+        unset($codeSampleHeadingMatches);
+
         $codeSampleMatches = $pageDom->get('pre[class^=language]');
         if (count($codeSampleMatches) >= 1) {
             foreach ($codeSampleMatches as $exampleNode) {
@@ -192,11 +229,17 @@ class HtmlRevision extends AbstractRevision
 
                 $className = $codeSample->getAttribute('class');
                 $languageName = str_replace('language-', '', $className);
+                $languageName = str_replace('javascript', 'js', $languageName);
                 $codeSample->setAttribute('class', $languageName);
                 $codeSample->removeAttribute('data-lang');
             }
         }
         unset($codeSampleMatches);
+
+        $tables = $pageDom->get('table');
+        foreach ($tables as $table) {
+            $this->convertTwoColsTableIntoDefinitionList($table);
+        }
 
         $this->setContent($pageDom->get('body')[0]->getHtml());
     }
@@ -222,6 +265,69 @@ class HtmlRevision extends AbstractRevision
                 }
             }
             $this->metadata['tags'] = array_unique($tags);
+        }
+    }
+
+    protected function convertTwoColsTableIntoDefinitionList(GlHtmlNode $ghn, $toFrontMatter = false)
+    {
+        $tableNode = $ghn->getDOMNode();
+
+        if ($tableNode->tagName !== 'table') {
+            throw new UnexpectedValueException('This method only accepts table nodes');
+        }
+
+        $tableKey = strtolower(str_replace('wikitable ', '', $tableNode->getAttribute('class')));
+
+        $hasTableKey = !empty($tableKey);
+
+        $conditionsToUse[] = isset($tableNode->childNodes[0]) && $tableNode->childNodes[0]->tagName === 'tr';
+        $conditionsToUse[] = isset($tableNode->childNodes[0]) && count($tableNode->childNodes[0]->childNodes) === 1;
+
+        /**
+         * We want to replace table **only if** its key: value type of table.
+         */
+        if (!in_array(false, $conditionsToUse)) {
+
+            // I wanted to use objects, but couldn't do it better than this.
+            // Whatever.
+            if ($hasTableKey === true) {
+                $concatString = sprintf(PHP_EOL.'<dl data-table="%s">'.PHP_EOL, $tableKey);
+            } else {
+                $concatString = PHP_EOL.'<dl>'.PHP_EOL;
+            }
+
+            $tableData = [];
+            foreach ($tableNode->childNodes as $trNodes) {
+                $tdCounter = 0;
+                $kv = [];
+                foreach ($trNodes->childNodes as $tdNodes) {
+                    if (count($tdNodes->childNodes) === 1) {
+                        $innerTdHTML = '';
+                        foreach ($tdNodes->childNodes as $itd) {
+                            $innerTdHTML .= $itd->ownerDocument->saveXML($itd);
+                        }
+                        $innerTdHTML = trim($innerTdHTML);
+                        ++$tdCounter;
+                        $kv[] = $innerTdHTML;
+                    }
+                }
+
+                $tableData[$kv[0]] = $kv[1];
+                $concatString .= sprintf('  <dt>%s</dt>'.PHP_EOL.'  <dd>%s</dd>'.PHP_EOL.PHP_EOL, $kv[0], $kv[1]);
+            }
+
+            if ($toFrontMatter && $hasTableKey) {
+                $this->metadata['tables'][$tableKey] = $tableData;
+            }
+
+            // Yup. Take this big string, DOMify it.
+            $concatString .= '</dl>'.PHP_EOL.PHP_EOL;
+            $newTable = $tableNode->ownerDocument->createDocumentFragment();
+            $newTable->appendXML($concatString);
+
+            $tableNode->parentNode->replaceChild($newTable, $tableNode);
+
+            unset($overviewTableMatches);
         }
     }
 

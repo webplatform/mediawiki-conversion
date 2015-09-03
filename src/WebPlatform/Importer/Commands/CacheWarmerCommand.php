@@ -55,9 +55,12 @@ DESCR;
 
         $maxHops = (int) $input->getOption('max-pages');   // Maximum number of pages we go through
 
-        $this->loadMissed(DATA_DIR.'/missed.yml');
-
         $ids = [];
+
+        if ($listMissed === true) {
+            $this->loadMissed(DATA_DIR.'/missed.yml');
+            $total = count($this->missed);
+        }
 
         $output->writeln('Warming cache:');
 
@@ -74,7 +77,7 @@ DESCR;
 
                 $wikiDocument = new MediaWikiDocument($pageNode);
                 $previous_location = (isset($normalized_location))?$normalized_location:'';
-                $normalized_location = $wikiDocument->getName();
+                $normalized_location = $wikiDocument->getTitle();
                 $id = $wikiDocument->getId();
 
                 /**
@@ -94,6 +97,13 @@ DESCR;
                     continue;
                 }
 
+                /**
+                 * If we went thus far, we got a match. But what if we have none left. Just quit it!
+                 */
+                if ($listMissed === true && --$total < 1) {
+                    break;
+                }
+
                 if (in_array($id, array_keys($ids))) {
                     $text = 'We got an unexpected situation, two wiki pages has the same id. The wiki page "%s" with id %d, has same as "%s"';
                     throw new Exception(sprintf($text, $previous_location, $id, $normalized_location));
@@ -101,8 +111,11 @@ DESCR;
 
                 $ids[$id] = $normalized_location;
 
-                $output->writeln(sprintf('  - %d: %s', $id, $normalized_location));
-                $this->documentFetch($wikiDocument);
+                $respObj = $this->documentFetch($wikiDocument);
+                $isCachedAppend = ($respObj->isFromCache())?null:' (new)';
+                $output->writeln(sprintf('  - %d: %s%s', $id, $normalized_location, $isCachedAppend));
+
+
             }
         }
     }

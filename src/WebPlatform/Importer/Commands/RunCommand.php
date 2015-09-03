@@ -266,6 +266,11 @@ DESCR;
                             /* @var MediaWikiApiParseActionResponse object to work with */
                             $respObj = $this->documentFetch($wikiDocument);
 
+                            if ($respObj->isEmpty() === true) {
+                                $output->writeln(sprintf('  skip: Document %s is empty, maybe deleted or been emptied without a redirect left', $title).PHP_EOL.PHP_EOL);
+                                continue;
+                            }
+
                             $newRev = new HtmlRevision($respObj, true);
                             $newRev->enableMarkdownConversion();
 
