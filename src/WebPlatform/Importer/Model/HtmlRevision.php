@@ -236,10 +236,38 @@ class HtmlRevision extends AbstractRevision
         }
         unset($codeSampleMatches);
 
+
+        /**
+         * Rework two colums tables into definition list.
+         */
         $tables = $pageDom->get('table');
         foreach ($tables as $table) {
             $this->convertTwoColsTableIntoDefinitionList($table);
         }
+        unset($tables);
+
+
+        /**
+         * Comments we want to get rid of starts with
+         *
+         * string(15) "NewPP limit rep"
+         * string(15) "Transclusion ex"
+         * string(15) "Saved in parser"
+         */
+        $excludeComments[] = "NewPP limit rep";
+        $excludeComments[] = "Transclusion ex";
+        $excludeComments[] = "Saved in parser";
+
+        $glDoneExposeDomDammit = $pageDom->get('body');
+        $xpath = new \DOMXPath($glDoneExposeDomDammit[0]->getDOMNode()->ownerDocument);
+        $commentsMatches = $xpath->query('//comment()');
+        foreach ($commentsMatches as $p) {
+            $commentText = substr(trim($p->nodeValue), 0, 15);
+            if (in_array($commentText, $excludeComments) && $p->nodeType === XML_COMMENT_NODE) {
+                $p->parentNode->removeChild($p);
+            }
+        }
+
 
         $this->setContent($pageDom->get('body')[0]->getHtml());
     }
@@ -310,6 +338,12 @@ class HtmlRevision extends AbstractRevision
                         ++$tdCounter;
                         $kv[] = $innerTdHTML;
                     }
+                }
+
+                if (!isset($kv[1])) {
+                    // We've gone thus far for no reason.
+                    // Get away!
+                    return;
                 }
 
                 $tableData[$kv[0]] = $kv[1];

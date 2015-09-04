@@ -166,7 +166,7 @@ abstract class AbstractImporterCommand extends Command
         $title = $wikiDocument->getTitle();
         $id = $wikiDocument->getId();
 
-        $cacheDir = sprintf('%s/cache', DATA_DIR);
+        $cacheDir = sprintf('%s/.cache', GIT_OUTPUT_DIR);
         $cacheFile = sprintf('%s/%d.json', $cacheDir, $id);
 
         if ($this->filesystem->exists($cacheFile) === true) {
