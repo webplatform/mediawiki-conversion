@@ -77,6 +77,7 @@ DESCR;
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not run  full import, limit to a maximum of pages', 0),
                     new InputOption('namespace-prefix', '', InputOption::VALUE_OPTIONAL, 'If not against main MediaWiki namespace, set prefix (e.g. Meta) so we can create a git repo with all contents on root so that we can use export as a submodule.', false),
                     new InputOption('resume-at', '', InputOption::VALUE_OPTIONAL, 'Resume run at a specific XML document index number ', 0),
+                    new InputOption('only-assets', '', InputOption::VALUE_NONE, '3rd pass specific. Skip document conversion, git add only assets that are refered in documents'),
                 ]
             );
 
@@ -98,6 +99,8 @@ DESCR;
 
         $resumeAt = (int) $input->getOption('resume-at');
 
+        $onlyAssets = $input->getOption('only-assets');
+
         $redirects = [];
         $pages = [];
 
@@ -105,6 +108,10 @@ DESCR;
             $this->loadMissed(DATA_DIR.'/missed.yml');
         } elseif ($listMissed === true && $passNbr !== 3) {
             throw new DomainException('Missed option is only supported at 3rd pass');
+        }
+
+        if ($onlyAssets === true && $passNbr !== 3) {
+            throw new DomainException('only-assets option is only useful at 3rd pass');
         }
 
         $repoInitialized = (realpath(GIT_OUTPUT_DIR.'/.git') === false) ? false : true;
@@ -267,47 +274,78 @@ DESCR;
                         try {
                             /* @var MediaWikiApiParseActionResponse object to work with */
                             $respObj = $this->documentFetch($wikiDocument);
-
-                            if ($respObj->isEmpty() === true) {
-                                $output->writeln(sprintf('  skip: Document %s is empty, maybe deleted or been emptied without a redirect left', $title).PHP_EOL.PHP_EOL);
-                                continue;
-                            }
-
-                            $newRev = new HtmlRevision($respObj, true);
-                            $newRev->enableMarkdownConversion();
-
-                            $newRev->setTitle($wikiDocument->getLastTitleFragment());
-
-                            // NOTE:
-                            //
-                            // In HtmlRevision, if the file is empty or only has a comment, we
-                            // rewrite the file to contain only a title.
-                            //
-                            // We could use `$newRev->isEmpty()` here to detect the fact that its
-                            // empty, but we would need to refactor the logic on how to delete
-                            // revisions.
-                            //
-                            // Since there are not many empty files, it has been decided to leave
-                            // as is.
-                            //
-                            if ($newRev->isEmpty()) {
-                                //die('Manually delete file?');
-                                $wikiRevision = $this->converter->apply($newRev);
-                                $removeFile = true; // Won't work. But, it could be a start.
-                            } else {
-                                $wikiRevision = $this->converter->apply($newRev);
-                            }
-
                         } catch (Exception $e) {
                             $output->writeln(sprintf('    ERROR: %s, left a note in errors/%d.txt', $e->getMessage(), $counter));
                             $this->filesystem->dumpFile(sprintf('errors/%d.txt', $counter), $e->getMessage());
                             throw new Exception('Debugging why API call did not work.', 0, $e); // DEBUG
                             continue;
                         }
-                        
+
                         if ($respObj->isFromCache()) {
                             // #XXX: Make sure AbstractImporterCommand has the same path as below
                             $output->writeln(sprintf('  cached: %s', sprintf('out/.cache/%d.json', $wikiDocument->getId())));
+                        } else {
+                            $output->writeln('  cached: Not from cache');
+                        }
+
+                        if ($respObj->isEmpty() === true) {
+                            $output->writeln(sprintf('  skip: Document %s is empty, maybe deleted or been emptied without a redirect left', $title).PHP_EOL.PHP_EOL);
+                            continue;
+                        }
+
+                        $newRev = new HtmlRevision($respObj, true);
+                        $newRev->enableMarkdownConversion();
+                        $newRev->setTitle($wikiDocument->getLastTitleFragment());
+
+                        $assets = $newRev->getAssets();
+                        if (count($assets) >= 1) {
+                            $output->writeln(sprintf('  assets: %d', count($assets)));
+                        } else {
+                            $output->writeln('  assets: None');
+                        }
+                        if ($onlyAssets === true) {
+                            if (count($assets) >= 1) {
+                                $problematicAssets = [];
+                                foreach ($newRev->getAssets() as $file) {
+                                    try {
+                                        $this->git
+                                            ->add()
+                                            ->execute(preg_replace('/^\//', '', $file));
+                                    } catch (Exception $e) {
+                                        $problematicAssets[] = $file;
+                                    }
+                                }
+
+                                if (count($problematicAssets) >= 1) {
+                                    $message = '    assets_status: NOT OK, %d problematic files, see errors/problematic_assets/%d.txt';
+                                    $output->writeln(sprintf($message, count($problematicAssets), $wikiDocument->getId()));
+                                    $this->filesystem->dumpFile(sprintf('errors/problematic_assets/%d.txt', $wikiDocument->getId()), print_r($problematicAssets, 1));
+                                } else {
+                                    $output->writeln('  assets_status: OK, all added.');
+                                }
+                            }
+
+                            continue;
+                        } /* End $onlyAssets */
+
+                        // NOTE:
+                        //
+                        // In HtmlRevision, if the file is empty or only has a comment, we
+                        // rewrite the file to contain only a title.
+                        //
+                        // We could use `$newRev->isEmpty()` here to detect the fact that its
+                        // empty, but we would need to refactor the logic on how to delete
+                        // revisions.
+                        //
+                        // Since there are not many empty files, it has been decided to leave
+                        // as is.
+                        //
+                        if ($newRev->isEmpty()) {
+                            //die('Manually delete file?');
+                            $wikiRevision = $this->converter->apply($newRev);
+                            $removeFile = true; // Won't work. But, it could be a start.
+                        } else {
+                            $wikiRevision = $this->converter->apply($newRev);
                         }
 
                         $revision_id = $revLast->getId();

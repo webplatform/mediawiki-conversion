@@ -156,14 +156,11 @@ abstract class AbstractImporterCommand extends Command
 
     protected function apiRequest($title)
     {
-        $cookieString = $this->cookieString;
-
-        return $this->apiHelper->makeRequest($title, $cookieString);
+        return $this->apiHelper->makeRequest($title, $this->cookieString);
     }
 
     protected function documentPurge(MediaWikiDocument $wikiDocument)
     {
-        $title = $wikiDocument->getTitle();
         $id = $wikiDocument->getId();
 
         $cacheDir = sprintf('%s/.cache', GIT_OUTPUT_DIR);
@@ -176,8 +173,8 @@ abstract class AbstractImporterCommand extends Command
 
     protected function documentFetch(MediaWikiDocument $wikiDocument)
     {
-        $title = $wikiDocument->getTitle();
         $id = $wikiDocument->getId();
+        $title = $wikiDocument->getTitle();
 
         $cacheDir = sprintf('%s/.cache', GIT_OUTPUT_DIR);
         $cacheFile = sprintf('%s/%d.json', $cacheDir, $id);
@@ -194,8 +191,6 @@ abstract class AbstractImporterCommand extends Command
             $obj = new MediaWikiApiParseActionResponse($contents);
             $obj->toggleFromCache();
         }
-
-        //var_dump($obj);
 
         return $obj;
     }

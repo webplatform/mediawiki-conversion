@@ -26,6 +26,9 @@ class HtmlRevision extends AbstractRevision
 
     protected $markdownConvertible = false;
 
+    /** @var array List of files used in reference */
+    protected $assets = [];
+
     /** @var boolean Toggle to true if MediaWiki Parse API returns a "missingtitle" error */
     protected $isDeleted = false;
 
@@ -124,7 +127,7 @@ class HtmlRevision extends AbstractRevision
         unset($revisionNotesMatches);
 
         /**
-         * Extract summary, pluck it up in the front matter.
+         * Extract summary, add it up in the front matter.
          *
          * This will be useful so we'll use it as meta description in generated static html.
          * It also won't matter if, in the future, the front matter summary isn't the same as the
@@ -205,6 +208,9 @@ class HtmlRevision extends AbstractRevision
                  */
                 if ($linkNode->hasAttribute('class')) {
                     if ($linkNode->getAttribute('class') === 'image') {
+                        // keep the line below commented; they links to "/File:foo.png".
+                        // Which is pointless in a migration to a static site generator.
+                        //$this->assets[] = $linkNode->getAttribute('href');
                         $linkNode->parentNode->insertBefore($linkNode->childNodes[0]);
                         $linkNode->parentNode->removeChild($linkNode);
                     }
@@ -212,6 +218,17 @@ class HtmlRevision extends AbstractRevision
             }
         }
         unset($linksMatches);
+
+        /**
+         * Figure out which images are in use
+         */
+        $assetUseMatches = $pageDom->get('img');
+        if (count($assetUseMatches) >= 1) {
+            foreach ($assetUseMatches as $asset) {
+                $assetFileNode = $asset->getDOMNode();
+                $this->assets[] = $assetFileNode->getAttribute('src');
+            }
+        }
 
         /**
          * Some wiki pages pasted more than once the links, better clean it up.
@@ -244,16 +261,6 @@ class HtmlRevision extends AbstractRevision
             }
         }
         unset($codeSampleMatches);
-
-        $doublyNestedPreCodeMatches = $pageDom->get('pre > code');
-        if (count($doublyNestedPreCodeMatches) >= 1) {
-            foreach ($doublyNestedPreCodeMatches as $dnpc) {
-                $dnpcNode = $dnpc->getDOMNode();
-                $dnpcNode->setAttribute('data-foo', 'bar');
-
-            }
-            unset($doublyNestedPreCodeMatches);
-        }
 
         /**
          * Rework two colums tables into definition list.
@@ -401,6 +408,11 @@ class HtmlRevision extends AbstractRevision
 
             unset($overviewTableMatches);
         }
+    }
+
+    public function getAssets()
+    {
+        return array_unique($this->assets);
     }
 
     public function isEmpty()
