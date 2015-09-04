@@ -555,11 +555,11 @@
         },
         {
             "name": "webplatform/content-converter",
-            "version": "1.2.5",
+            "version": "1.2.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/webplatform/content-converter.git",
-                "reference": "5e92f69a965394d9f41fae71e7cbf77acd95a15a"
+                "reference": "42c91e361d1ba4558479f1f9d1d70ce1d8a0a630"
             },
             "require": {
                 "symfony/yaml": "^2.7"
@@ -591,7 +591,7 @@
                 "mediawiki",
                 "wikitext"
             ],
-            "time": "2015-09-02 03:38:07"
+            "time": "2015-09-03 20:03:09"
         }
     ],
     "packages-dev": [

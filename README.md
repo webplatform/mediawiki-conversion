@@ -11,12 +11,55 @@ With idempotent revisions
 ![mediawiki-git-comparing-commits](https://cloud.githubusercontent.com/assets/296940/8805914/e457145c-2fa1-11e5-8cbf-323cac481846.png)
 
 
-### Features
+### What does it do?
 
-* Convert MediaWiki wiki page history into Git repository
-* Create git commits per revisions with preserved author and date
-* Dump every page into text files, organized by their url (e.g. `css/properties`, `css/properties/index.md`), without any modifications
-* Read data from MediaWiki’s recommended MediaWiki way of backups (i.e. `maintenance/dumpBackup.php`)
+This project was created while making a migration from MediaWiki of WebPlatform Docs into a set of static files, converted into Markdown, into a Git repository.
+
+Project took about a month of full time work, but the project succeeded.
+
+
+#### Desired outcome
+
+What this project helped achieve:
+
+1. Re-create into a Git repository all edits history made in MediaWiki, and preserve date of contribution and author
+1. Dump every page into text files, organized by their url (e.g. `css/properties`, `css/properties/index.md`), without any modifications
+1. Export in separate Git repositories other content namespaces, not part of the main content, but still desired to be part of export (e.g. Meta documentation, User pages, etc.)
+1. Convert every page into HTML using MediaWiki. Not re-inventing a MediaWiki parser. It's too rough!
+1. Cache MediaWiki API HTTP calls responses. Because a small mistake might make you need to run again, and we want to save time.
+1. Generate web server rewrite rules so we can still keep MediaWiki URLs, but serve the right static file
+1. Get to know more about the contributions.
+1. Add to git repository only uploads that are in use in the content. See [Exporting file uploads](#exporting-file-uploads).
+1. Get a list of all broken links on a given page. Because MediaWiki knows which ones are broken in current page, you can export into static site and have them as notes for tidy-up work later.
+1. Get a list of all code sample links.
+1. Keep track of commit author without revealing real email address, e.g. Julia, who has an account on *foo.example.org* with username "Julia", becomes **Julia@foo.example.org** committer.
+1. If a contributor wants to reveal his identity in git history, he can add a line in a `.mailmap` file on the exported git repository
+
+
+#### Pain points encountered
+
+There are a few things that may require you to adjust your MediaWiki installation.
+
+While creating this project, the following happened and may happen to you too:
+
+1. Templates that ends up creating bogus HTML when you convert into Markdown.
+2. File uploads are on external Swift endpoint, we had to ensure image reference to become local before running import.
+3. Code samples on many services (Dabblet, JSBin, CodePen, etc). Where are they, so we can back them up.
+4. Too many file uploads, only commit ones that are still in use.
+5. Some HTML blocks contains useful data, but would be inuseful to be persisted in raw HTML. How about moving them into the "Front matter" for use in a static site generator.
+
+Those made us make a few adjustments in the configuration and patch the `SyntaxHighlight_GeSHI` extension. See [webplatform/mediawiki-conversion#19 issue](https://github.com/webplatform/mediawiki-conversion/issues/19)
+
+
+
+#### Features
+
+Other non use-case things this workspace helps you with.
+
+* Use MediaWiki’s recommended MediaWiki way of backups (i.e. `maintenance/dumpBackup.php`) as data source to reproduce history
+* Manage git commits per revisions with preserved author, commiter(!), and date
+* Fully convert history into git, recreating metadata: author, committer, date, contents
+* Write history of deleted (with or without redirects) "underneath" history of current content
 * Get "reports" about the content: deleted pages, redirects, translations, number of revisions per page
 * Harmonize titles and converts into valid file name (e.g. `:`,`(`,`)`,`@`) in their URL (e.g. `css/atrules/@viewport`, redirects to `css/atrules/viewport` and serve from HTML file that would be generated from `css/atrules/viewport/index.md`)
 * Create list of rewrite rules to keep original URLs refering back to harmonized file name
@@ -24,6 +67,64 @@ With idempotent revisions
 * Ability to run script from backed up XML file (i.e. once we have XML files, no need to run script on same server)
 * Import metadata such as Categories, and list of authors into generated files
 * Ability to detect if a page is a translation, create a file in the same folder with language name
+* Adds to front matter links that are known to be broken by MediaWiki
+
+
+#### Utilities
+
+Every Mediawiki installation is different, there’s no silver bullet.
+
+You can use this as a starting point to extract and convert your own MediaWiki managed site.
+
+But you'll most-likely have to fork this code and adapt to suit your content.
+
+All commands requires a data source. In all cases, except for 3rd pass `run`, and `cache-warmer`, commands from this project reads directly without any calls through the Internet.
+
+**Commands features**:
+
+This isn’t an exhaustive list, but common options available to most commands.
+
+* **--missed**: runs only through pages that are listed in `data/missed.yml`
+* **--resume-at=n**: Allows you to stop the command, and resume from that point. Use the last successful page's **index**.
+* **--max-pages=n**: limit the number of pages to test drive.
+* **--max-revs=n**: limit the number of pages to test drive.
+
+To get full list of available options, refer to the command help (e.g. `app/console mediawiki:run --help`).
+
+
+##### summary
+
+Generates a few reports and helps you craft your own web server redirect map.
+
+    app/console mediawiki:summary
+
+Since every MediaWik handles URLs with characters that maps not well to a file system path,
+you'll have to provide redirects to the new location. See [keeping URLs](#keeping-urls)
+
+
+##### cache-warmer
+
+To speed up `run` at 3rd pass, the *cache-warmer* makes an HTTP call to the MediaWiki instance to keep a local copy of Parser API response body.
+
+
+##### refresh-pages
+
+What if you realize that a page has changes that requires you to edit the content in MediaWiki, or that you had to edit a transclusion template on multiple pages.
+
+You'd want to purge a few pages, but if its too many for you to do it manually, this'll do.
+
+To refresh only specific pages:
+
+* Go in your web browser that has a session on your wiki instance
+* Grab the `..._session=foo` session identifier from the browser's developer tools and add it into this project's `.env` file.
+* Make a list of pages to refresh, add them into [data/missed.yml](./data/missed.yml)
+* Run the script like this
+
+    app/console mediawiki:refresh-pages --missed
+
+If you have more than one data source, you could add the `--xml-source=` argument too.
+
+    app/console mediawiki:refresh-pages --missed --xml-source=dumps/foo.xml
 
 
 ### Potential quirks
@@ -38,42 +139,81 @@ With idempotent revisions
 ## Use
 
 
-### Gather MediaWiki backup and user data
+### Review your MediaWiki setup
+
+There are a few things that may require you to adjust your MediaWiki installation.
+
+While creating this project, the following happened and may happen to you too:
+
+1. Templates that ends up creating bogus HTML when you convert into Markdown.
+2. File uploads are on external Swift endpoint, we had to ensure image reference to become local before running import.
+3. Code samples on many services (Dabblet, JSBin, CodePen, etc). Where are they, so we can back them up.
+4. Too many file uploads, only commit ones that are still in use.
+5. Some HTML blocks contains useful data, but would be inuseful to be persisted in raw HTML. How about moving them into the "Front matter" for use in a static site generator.
+
+
+### Gather MediaWiki user data
+
+If you don't want to impact production, you could run a on a separate computer from [MediaWiki-Vagrant](https://github.com/wikimedia/mediawiki-vagrant) and import your own database *mysqldump* into it.
+
+This will create a usable `data/users.json` that this workbench requires from MediaWiki.
+
+For format details, refer to [Users.json Schema](#users-json-schema).
 
 1. Make sure the folder `mediawiki/` exists side by side with this repository and that you can use the MediaWiki instance.
 
-  ```
-  mediawiki-conversion/
-  mediawiki/
-  //...
-  ```
+    mediawiki-conversion/
+    mediawiki/
+    // ...
 
-  If you want an easy way, you could use [MediaWiki-Vagrant](https://github.com/wikimedia/mediawiki-vagrant) and import your own database *mysqldump* into it.
+1. Run `app/export_users` script.
 
-1. Make sure you run the following from where you can run PHP code and use the database, e.g. *MediaWiki vagrant* VM.
-
-1. Run `dumpBackup` make target; This should export content and create a cache of all users
-
-  ```
-  make dumpBackup
-  ```
-
-1. **NOTE** Once here, we do not need to run the remaining from the same machine as the one we run MediaWiki
+Notice that the **export_users** script actually uses MediaWiki's configuration file directly.
 
 
-### Run import
+### Gather MediaWiki XML backup export
 
-MediaWiki isn’t required locally.
+This step, like *Gater user data*, also requires a MediaWiki running installation. You could also prevent impact on production, by running from a on a separate computer from [MediaWiki-Vagrant](https://github.com/wikimedia/mediawiki-vagrant) and import your own database *mysqldump* into it.
+
+This will create an XML file that'll contain all history.
+
+You'll have to know which namespaces your MediaWiki installation has.
+
+    php ../mediawiki/maintenance/dumpBackup.php --full --filter=namespace:0,108 > data/dumps/main_full.xml
+
+Notice that the example above runs `dumpBackup.php` from this project's repository.
+
+After this point, you don't need to run anything else directly against MediaWiki code. Except through HTTP, at `mediawiki:run`, at 3rd pass.
+
+If you built a temporary [MediaWiki-Vagrant](https://github.com/wikimedia/mediawiki-vagrant), you can delete it now.
+
+
+### Generate reports from exported data
+
+As previously said, MediaWiki isn’t required locally anymore.
 
 Make sure that you have a copy of your data available in a MediaWiki installation running with data, we´ll use the API
 to get the parser to give us the generated HTML at the 3rd pass.
+
+1. **Configure variables**
+
+  Configuration is managed through `.env` file. You can copy `.env.example` into `.env` and adjust with your own details.
+
+  Most important ones are:
+
+    * (required) `MEDIAWIKI_API_ORIGIN` to match your own MediaWiki installation. This variable is used at `run` and `cache-warmer` commands to make HTTP calls
+    * (required) `COMMITER_ANONYMOUS_DOMAIN` to make your contributor email address to `Joe@example.org`. This is meant to prevent expose history and users, without giving away their real email address.)
+    * `MEDIAWIKI_USERID` your MediaWiki administrator account userid. Required to craft a valid cookie when you run `cache-warmer` to send `?action=purge` requests to MediaWiki.
+    * `MEDIAWIKI_USERNAME` same as above.
+    * `MEDIAWIKI_WIKINAME` name of your database, should be the same value you use in your *LocalSettings.php* at `$wgDBname` variable. Required for cookie name.
+
 
 1. **Get a feel of your data**
 
   Run this command and you’ll know which pages are marked as deleted in history, the redirects, how the files will be called
   and so on. This gives out a very verbosic output, you may want to send the output to a file.
 
-  This command makes no external requests, it only reads `data/users.json` (from `make dumpBackup` earlier) and
+  This command makes no external requests, it only reads `data/users.json` (see [Gather MediaWiki user data](#gather-mediawiki-user-data)) and
   the dumpBackup XML file in `data/dumps/main_full.xml`.
 
   ```
@@ -107,14 +247,6 @@ to get the parser to give us the generated HTML at the 3rd pass.
   ```
   mkdir out
   ```
-
-
-1. **Review the following to adapt to your installation**
-
-  * **lib/mediawiki.php**;
-    * `MEDIAWIKI_API_ORIGIN` to match your own MediaWiki installation you are exporting from
-    * `COMMITER_ANONYMOUS_DOMAIN` to match the domain name you want your users to use email domain. (Useful to expose history and users, without giving away their real email address.)
-  * If you need to superseed a user, look at the `WebPlatform\Importer\Commands\RunCommand` class at the comment "Fix duplicates and merge them as only one", uncomment and adjust to suit your needs.
 
 
 1. **Review [TitleFilter][title-filter] and adapt the rules according to your content**
@@ -207,7 +339,7 @@ to get the parser to give us the generated HTML at the 3rd pass.
   resume at any point by specifying the `--resume-at=n` index it been interrupted.
 
   ```
-  app/console mediawiki:run 3 --resume-at 2450 >> run.log
+  app/console mediawiki:run 3 --resume-at=2450 >> run.log
   ```
 
 
@@ -255,8 +387,19 @@ to get the parser to give us the generated HTML at the 3rd pass.
 
 
   ```
-  app/console mediawiki:run 3 --xml-source=dumps/wpd_full.xml --namespace-prefix=WPD --missed >> run.log
+  app/console mediawiki:run 3 --xml-source=dumps/wpd_full.xml --namespace-prefix=WPD --missed >> run.log 2>&1
   ```
+
+1. **Run third pass** (once more), but import image uploads
+
+  MediaWiki manages uploads. If you are moving out, you might want to import only what your users uploaded that are still in use.
+
+  To import them, you can use, once again 3rd pass, but only for image uploads like so:
+
+  ```
+  app/console mediawiki:run 3 --only-assets >> run.log 2>&1
+  ```
+
 
 
 
@@ -309,6 +452,7 @@ to get the parser to give us the generated HTML at the 3rd pass.
   ```
   app/console mediawiki:cache-warmer --xml-source=dumps/wpd_full.xml
   app/console mediawiki:run 3 --xml-source=dumps/wpd_full.xml --namespace-prefix=WPD >> run_wpd.log
+  app/console mediawiki:run 3 --only-assets --xml-source=dumps/wpd_full.xml --namespace-prefix=WPD >> run_wpd.log
   ```
 
   The difference will be that instead of creating a file as `out/content/WPD/Wishlist/index.md`, it would create them as `out/Wishlist/index.md` so we can

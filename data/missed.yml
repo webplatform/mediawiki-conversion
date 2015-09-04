@@ -1,16 +1,39 @@
-# 3rd pass missed entries to retry
+#
+# missed entries to retry
 #
 # To use, use --missed argument (e.g. `app/console mediawiki:run 3 --missed`)
 #
-# Each entry is relative to the out/ or out/content directory, if you are importing from
-# a namespace content, make sure you add the namespace prefix too.
+# Each entry is relative to the out/ directory. Its assumed that what is not in
+# MediaWiki’s main content namespace (e.g. Meta:Main_Page) will be in a separate git
+# repository but will end up accessible as a sub folder (e.g. Meta/Main_Page).
 #
 # https://docs.webplatform.org/w/index.php?action=edit&title=WPD:Getting_Started/examples
 #
 missed:
-  - Meta/web_platform_wednesday/past_reports
-  - Meta/Editors_Guide/content
+  - Accessibility_basics
   - Meta/Editors_Guide
+  - Meta/Editors_Guide/content
+  - Meta/svg_test
+  - Meta/web_platform_wednesday/past_reports
   - WPD/Community/Meetings/General/Earlier
   - WPD/Community/Task_Force
   - WPD/Getting_Started/examples
+  - apis/appcache/ApplicationCache
+  - concepts/Internet_and_Web/mime_types
+  - css
+  - css/properties/border-radius
+  - css/properties/font-size
+  - css/selectors/pseudo-classes/not
+  - dom/NamedNodeMap/removeNamedItem
+  - dom/interface
+  - guides/html_forms_basics
+  - guides/html_links
+  - html/attributes/cellPadding
+  - html/elements
+  - html/elements/input/type/file
+  - html/elements/table
+  - html/tutorials
+  - svg/properties/cx_SVGRadialGradientElement
+  - svg/tutorials/smarter_svg_filters
+  - tutorials/html5_form_features
+
