@@ -26,6 +26,12 @@ class HtmlRevision extends AbstractRevision
 
     protected $markdownConvertible = false;
 
+    /** @var boolean Toggle to true if MediaWiki Parse API returns a "missingtitle" error */
+    protected $isDeleted = false;
+
+    /** @var boolean Toggle to true if the received text contents is empty */
+    protected $isEmpty = false;
+
     /**
      * Let’s use MediaWiki API Response JSON as constructor
      *
@@ -42,6 +48,9 @@ class HtmlRevision extends AbstractRevision
         $this->setTitle($recv->getTitle());
         $this->makeTags($recv->getCategories());
         $this->setAuthor(new MediaWikiContributor(null), false);
+
+        $this->isDeleted = $recv->isDeleted();
+        $this->isEmpty = $recv->isEmpty();
 
         if ($lint === true) {
             $this->lint($recv->getHtml());
@@ -69,7 +78,7 @@ class HtmlRevision extends AbstractRevision
         /**
          * Remove inuseful markup in MediaWiki generated HTML for titles
          */
-        $titlesMatches = $pageDom->get('h1,h2,h3,h4');
+        $titlesMatches = $pageDom->get('h1,h2,h3,h4,h5,h6'); // do we really have an h6 tag?
         foreach ($titlesMatches as $title) {
             $titleText = $title->getText();
             $title->setValue(htmlentities($titleText));
@@ -181,13 +190,13 @@ class HtmlRevision extends AbstractRevision
                         $hrefAttribute = str_replace('code.webplatform.org/gist', 'gist.github.com', $hrefAttribute);
                         $this->metadata['code_samples'][] = $hrefAttribute;
                     } else {
-                        $this->metadata['external_links'][] = $hrefAttribute;
+                        //$this->metadata['external_links'][] = $hrefAttribute;
                     }
                 }
 
                 /**
                  * Remove surrounding a tag to images.
-                 * 
+                 *
                  * <a href="/wiki/File:..."><img src="..." /></a>
                  *
                  * into
@@ -236,46 +245,75 @@ class HtmlRevision extends AbstractRevision
         }
         unset($codeSampleMatches);
 
+        $doublyNestedPreCodeMatches = $pageDom->get('pre > code');
+        if (count($doublyNestedPreCodeMatches) >= 1) {
+            foreach ($doublyNestedPreCodeMatches as $dnpc) {
+                $dnpcNode = $dnpc->getDOMNode();
+                $dnpcNode->setAttribute('data-foo', 'bar');
+
+            }
+            unset($doublyNestedPreCodeMatches);
+        }
 
         /**
          * Rework two colums tables into definition list.
          */
-        $tables = $pageDom->get('table');
-        foreach ($tables as $table) {
-            $this->convertTwoColsTableIntoDefinitionList($table);
+        $tablesMatches = $pageDom->get('table');
+        if (count($tablesMatches) >= 1) {
+            foreach ($tablesMatches as $table) {
+                $this->convertTwoColsTableIntoDefinitionList($table);
+            }
+            unset($tablesMatches);
         }
-        unset($tables);
 
 
         /**
-         * Comments we want to get rid of starts with
+         * Last pass, remove inuseful comments.
          *
-         * string(15) "NewPP limit rep"
-         * string(15) "Transclusion ex"
-         * string(15) "Saved in parser"
+         * If it becomes an empty string, flag as empty or deleted document.
          */
-        $excludeComments[] = "NewPP limit rep";
-        $excludeComments[] = "Transclusion ex";
-        $excludeComments[] = "Saved in parser";
+        $glClassDoNotExposeDomDammit = $pageDom->get('body');
+        // Handle empty documents with only a comment
+        if (isset($glClassDoNotExposeDomDammit[0])) {
 
-        $glDoneExposeDomDammit = $pageDom->get('body');
-        $xpath = new \DOMXPath($glDoneExposeDomDammit[0]->getDOMNode()->ownerDocument);
-        $commentsMatches = $xpath->query('//comment()');
-        foreach ($commentsMatches as $p) {
-            $commentText = substr(trim($p->nodeValue), 0, 15);
-            if (in_array($commentText, $excludeComments) && $p->nodeType === XML_COMMENT_NODE) {
-                $p->parentNode->removeChild($p);
+            /**
+             * Comments we want to get rid of starts with
+             *
+             * string(15) "NewPP limit rep"
+             * string(15) "Transclusion ex"
+             * string(15) "Saved in parser"
+             */
+            $excludeComments[] = "NewPP limit rep";
+            $excludeComments[] = "Transclusion ex";
+            $excludeComments[] = "Saved in parser";
+            $xpath = new \DOMXPath($glClassDoNotExposeDomDammit[0]->getDOMNode()->ownerDocument);
+            $commentsMatches = $xpath->query('//comment()');
+            foreach ($commentsMatches as $p) {
+                $commentText = substr(trim($p->nodeValue), 0, 15);
+                if (in_array($commentText, $excludeComments) && $p->nodeType === XML_COMMENT_NODE) {
+                    $p->parentNode->removeChild($p);
+                }
             }
+            unset($glClassDoNotExposeDomDammit);
+
+            $this->setContent($pageDom->get('body')[0]->getHtml());
+        } else {
+
+            // Yup. Its empty. We could do something at run, but we won't for now.
+            $this->isEmpty = true;
+            $this->setContent(null);
+
+            // Let's add metadata instead, so we'll catch them with
+            // static site generator downstream
+            $this->metadata['is_empty'] = true;
         }
 
-
-        $this->setContent($pageDom->get('body')[0]->getHtml());
     }
 
 
     /**
      * We will use categories as tags into the static site.
-     * MediaWiki Categories such as API_Method or CSS_Method 
+     * MediaWiki Categories such as API_Method or CSS_Method
      * will be separated by either space or underscore.
      * With that, we'll reuse MediaWiki data as a way to categorize
      * content.
@@ -363,6 +401,16 @@ class HtmlRevision extends AbstractRevision
 
             unset($overviewTableMatches);
         }
+    }
+
+    public function isEmpty()
+    {
+        return $this->isEmpty;
+    }
+
+    public function isDeleted()
+    {
+        return $this->isDeleted;
     }
 
     public function getMetadata()

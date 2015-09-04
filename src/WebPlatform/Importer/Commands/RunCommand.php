@@ -237,6 +237,8 @@ DESCR;
                         break;
                     }
 
+                    $removeFile = false;
+
                     $wikiRevision = $revList->current();
 
                     /* -------------------- Author -------------------- **/
@@ -276,7 +278,25 @@ DESCR;
 
                             $newRev->setTitle($wikiDocument->getLastTitleFragment());
 
-                            $wikiRevision = $this->converter->apply($newRev);
+                            // NOTE:
+                            //
+                            // In HtmlRevision, if the file is empty or only has a comment, we
+                            // rewrite the file to contain only a title.
+                            //
+                            // We could use `$newRev->isEmpty()` here to detect the fact that its
+                            // empty, but we would need to refactor the logic on how to delete
+                            // revisions.
+                            //
+                            // Since there are not many empty files, it has been decided to leave
+                            // as is.
+                            //
+                            if ($newRev->isEmpty()) {
+                                //die('Manually delete file?');
+                                $wikiRevision = $this->converter->apply($newRev);
+                                $removeFile = true; // Won't work. But, it could be a start.
+                            } else {
+                                $wikiRevision = $this->converter->apply($newRev);
+                            }
 
                         } catch (Exception $e) {
                             $output->writeln(sprintf('    ERROR: %s, left a note in errors/%d.txt', $e->getMessage(), $counter));
@@ -316,7 +336,6 @@ DESCR;
                         }
                     }
 
-                    $removeFile = false;
                     if ($passNbr < 3 && $revLast->getId() === $wikiRevision->getId() && $wikiDocument->hasRedirect()) {
                         $output->writeln('      is_last_and_has_redirect: True');
                         $removeFile = true;
