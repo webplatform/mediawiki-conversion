@@ -42,11 +42,12 @@ There are a few things that may require you to adjust your MediaWiki installatio
 
 While creating this project, the following happened and may happen to you too:
 
-1. Templates that ends up creating bogus HTML when you convert into Markdown.
-2. File uploads are on external Swift endpoint, we had to ensure image reference to become local before running import.
-3. Code samples on many services (Dabblet, JSBin, CodePen, etc). Where are they, so we can back them up.
-4. Too many file uploads, only commit ones that are still in use.
-5. Some HTML blocks contains useful data, but would be inuseful to be persisted in raw HTML. How about moving them into the "Front matter" for use in a static site generator.
+* Templates that ends up creating bogus HTML when you convert into Markdown.
+* File uploads are on external Swift endpoint, we had to ensure image reference to become local before running import.
+* Code samples on many services (Dabblet, JSBin, CodePen, etc). Where are they, so we can back them up.
+* Too many file uploads, only commit ones that are still in use.
+* Some HTML blocks contains useful data, but would be inuseful to be persisted in raw HTML. How about moving them into the "Front matter" for use in a static site generator.
+* Converting into Markdown only using RegExes is **very hard**. Use [Pandoc][pandoc] internally as converter.
 
 Those made us make a few adjustments in the configuration and patch the `SyntaxHighlight_GeSHI` extension. See [webplatform/mediawiki-conversion#19 issue](https://github.com/webplatform/mediawiki-conversion/issues/19)
 
@@ -137,6 +138,89 @@ If you have more than one data source, you could add the `--xml-source=` argumen
 
 
 ## Use
+
+    git clone https://github.com/webplatform/mediawiki-conversion.git
+    cd mediawiki-conversion
+    composer install
+    app/console
+
+Outputs;
+
+```
+ mediawiki
+  mediawiki:cache-warmer
+                Walk through MediaWiki dumpBackup XML file, run each
+                document and make an API call to an instance we use
+                to migrate content out.
+
+                This script is there to speed up `mediawiki:run` at 3rd pass
+                so that it doesn’t need to make HTTP requests and work
+                only with local files.
+
+  mediawiki:refresh-pages
+                You went through `mediawiki:run` pass 1,2,3 then realized that
+                you needed to edit pages, and now you need to clear MediaWiki cache?
+
+                Problem is that there are too many pages to go through?
+
+                That’s what this does.
+
+                This is nothing fancy, let’s emulate we’re a browser and ask as
+                an authenticated user to "refresh" the page from standard MediaWiki
+                front controller  (i.e. NOT /w/api.php).
+
+                To use:
+
+                    - Login to your wiki
+                    - Go to another page on the wiki while logged in
+                    - In developer tools, get a to MediaWiki (e.g. /wiki/Main_Page)
+                    - Get the value of cookies that ends with (e.g. wpwikiUserID,
+                      provided $wgDBname is set to "wpwiki"):
+                       - UserID
+                       - UserName
+                       - _session
+                    - Paste the values in `.env`
+                    - Use like described in `mediawiki:run`, at 3rd pass
+
+  mediawiki:run
+                Walk through MediaWiki dumpBackup XML file and run through revisions
+                to convert them into static files.
+
+                Script is designed to run in three passes that has to be run in
+                this order.
+
+                1.) Handle deleted pages
+
+                    When a Wiki page is moved, MediaWiki allows to leave a redirect behind.
+                    The objective of this pass is to put the former content underneath all history
+                    such that this pass leaves an empty output directory but with all the deleted
+                    file history kept.
+
+
+                2.) Handle pages that weren’t deleted in history
+
+                    Write history on top of deleted content. That way we won’t get conflicts between
+                    content that got deleted from still current content.
+
+                    Beware; This command can take MORE than an HOUR to complete.
+
+
+                3.) Convert content
+
+                    Loop through ALL documents that still has content, take latest revision and pass it through
+                    a converter.
+
+  mediawiki:summary
+                Walk through MediaWiki dumpBackup XML file,
+                summarize revisions give details about the
+                wiki contents.
+
+                - List all pages
+                - Which pages are translations
+                - Which pages are redirects
+                - Number of edits ("Revision") per page
+                - Edits average and median
+```
 
 
 ### Review your MediaWiki setup
@@ -779,6 +863,19 @@ As for the email address, it isn’t required because we’ll create a  git comm
 ]
 ```
 
+## Credits
+
+The following projects are used in this workspace.
+
+* [Pandoc][pandoc]
+* [Symfony][symfony]: Console, Filesystem
+* [glicer/simply-html](https://packagist.org/packages/glicer/simply-html)
+* [prewk/xml-string-streamer](https://github.com/prewk/xml-string-streamer)
+* [ryakad/pandoc-php](https://github.com/ryakad/pandoc-php)
+* [vlucas/phpdotenv](https://github.com//vlucas/phpdotenv)
+* [bit3/git-php](https://github.com/bit3/git-php)
+
+
   [mwc]: https://github.com/webplatform/mediawiki-conversion
   [action-parser-docs]: https://www.mediawiki.org/wiki/API:Parsing_wikitext
   [wpd-repo]: https://github.com/webplatform/docs
@@ -787,4 +884,5 @@ As for the email address, it isn’t required because we’ll create a  git comm
   [mw-dumpbackup-xsd]: https://www.mediawiki.org/xml/export-0.8.xsd
   [mw-export]: https://www.mediawiki.org/wiki/Help:Export
   [mw-special-export]: https://www.mediawiki.org/wiki/Manual:Parameters_to_Special:Export
-
+  [pandoc]: http://pandoc.org/ "Pandoc, a universal document converter"
+  [symfony]: http://symfony.com/

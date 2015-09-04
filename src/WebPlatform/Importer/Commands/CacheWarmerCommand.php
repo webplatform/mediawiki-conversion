@@ -22,6 +22,7 @@ class CacheWarmerCommand extends AbstractImporterCommand
     protected function configure()
     {
         $description = <<<DESCR
+
                 Walk through MediaWiki dumpBackup XML file, run each
                 document and make an API call to an instance we use
                 to migrate content out.

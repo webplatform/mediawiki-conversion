@@ -34,6 +34,7 @@ class RefreshPagesCommand extends AbstractImporterCommand
     protected function configure()
     {
         $description = <<<DESCR
+
                 You went through `mediawiki:run` pass 1,2,3 then realized that
                 you needed to edit pages, and now you need to clear MediaWiki cache?
 
@@ -54,7 +55,7 @@ class RefreshPagesCommand extends AbstractImporterCommand
                        - UserID
                        - UserName
                        - _session
-                    - Paste the values in `lib/mediawiki.php`
+                    - Paste the values in `.env`
                     - Use like described in `mediawiki:run`, at 3rd pass
 
 DESCR;

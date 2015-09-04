@@ -24,6 +24,7 @@ class SummaryCommand extends AbstractImporterCommand
     protected function configure()
     {
         $description = <<<DESCR
+
                 Walk through MediaWiki dumpBackup XML file,
                 summarize revisions give details about the
                 wiki contents.

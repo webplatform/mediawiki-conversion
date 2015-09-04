@@ -38,6 +38,7 @@ class RunCommand extends AbstractImporterCommand
     protected function configure()
     {
         $description = <<<DESCR
+
                 Walk through MediaWiki dumpBackup XML file and run through revisions
                 to convert them into static files.
 
