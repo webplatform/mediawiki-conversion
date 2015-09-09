@@ -10,6 +10,11 @@
 # https://docs.webplatform.org/w/index.php?action=edit&title=WPD:Getting_Started/examples
 #
 missed:
+  - tutorials/eventsource_basics
+  - tutorials/styling_xml_with_css
+  - tutorials/debugging_css
+  - tutorials/javascript_statements
+  - concepts/programming/about_javascript
   - Accessibility_basics
   - Meta/Editors_Guide
   - Meta/Editors_Guide/content

@@ -34,6 +34,59 @@ class HtmlToMarkdown implements ConverterInterface
     {
         $this->converter = new Pandoc();
 
+        /**
+         * Found language code in WebPlatform code samples
+         *
+         *  - brush:
+         *  - css
+         *  - de1
+         *  - glsl
+         *  - html
+         *  - html4strict
+         *  - http
+         *  - js
+         *  - lang-css
+         *  - lang-markup
+         *  - other
+         *  - php
+         *  - prettyprint
+         *  - python
+         *  - script
+         *  - xml
+         *  - yaml
+         *  - style=&quot;background-color:
+         */
+        $validLanguageCodes['html'] = ['markup', 'xhtml', 'html5', 'html4strict', 'lang-markup'];
+        $validLanguageCodes['css'] = ['lang-css'];
+        $validLanguageCodes['svg'] = [];
+        $validLanguageCodes['xml'] = [];
+        $validLanguageCodes['yaml'] = [];
+        $validLanguageCodes['js'] = ['script', 'javascript'];
+
+        $this->languageCodeCallback = function ($matches) use ($validLanguageCodes) {
+            if (!is_array($matches) || !isset($matches[1])) {
+                return '```';
+            }
+
+            if (in_array($matches[1], array_keys($validLanguageCodes))) {
+                return sprintf('``` %s', $matches[1]);
+            }
+
+            // Some entries such as '``` {.script style="font-size: 16px;"}' has been found in $matches[0] :(
+            // ... in this case, we'll change $matches[1] to have ' style="..."' removed.
+            $matches[1] = substr($matches[1], 0, strpos($matches[1], ' '));
+            // ... Yup. Another input has "brush: .js" at $matches[1]. Let's trim that out too.
+            $matches[1] = str_replace('brush: .', '', $matches[1]);
+
+            foreach ($validLanguageCodes as $kp => $possibilities) {
+                if (in_array($matches[1], $possibilities)) {
+                    return sprintf('``` %s', $kp);
+                }
+            }
+
+            return '```';
+        };
+
         return $this;
     }
 
@@ -46,7 +99,7 @@ class HtmlToMarkdown implements ConverterInterface
      * Apply Wikitext rewrites.
      *
      * @param AbstractRevision $revision Input we want to transfer into Markdown
-     * 
+     *
      * @return AbstractRevision
      */
     public function apply(AbstractRevision $revision)
@@ -76,6 +129,7 @@ class HtmlToMarkdown implements ConverterInterface
 
             if ($revision->isMarkdownConvertible() === true) {
                 $content = $this->convert($html);
+                $content = preg_replace_callback("/```\s?\{\.(.*)\}/muS", $this->languageCodeCallback, $content);
             } else {
                 $content = $html;
             }
