@@ -19,6 +19,7 @@ use UnexpectedValueException;
  */
 class HtmlRevision extends AbstractRevision
 {
+
     /** @var MediaWikiApiParseActionResponse copy of the instance given at constructor time */
     protected $dto;
 
@@ -265,7 +266,7 @@ class HtmlRevision extends AbstractRevision
         /**
          * Rework two colums tables into definition list.
          */
-        $tablesMatches = $pageDom->get('table');
+        $tablesMatches = $pageDom->get('table.overview_table,table.summary,table.relatedspecs');
         if (count($tablesMatches) >= 1) {
             foreach ($tablesMatches as $table) {
                 $this->convertTwoColsTableIntoDefinitionList($table);
@@ -341,7 +342,7 @@ class HtmlRevision extends AbstractRevision
         }
     }
 
-    protected function convertTwoColsTableIntoDefinitionList(GlHtmlNode $ghn, $toFrontMatter = false)
+    protected function convertTwoColsTableIntoDefinitionList(GlHtmlNode $ghn)
     {
         $tableNode = $ghn->getDOMNode();
 
@@ -395,7 +396,7 @@ class HtmlRevision extends AbstractRevision
                 $concatString .= sprintf('  <dt>%s</dt>'.PHP_EOL.'  <dd>%s</dd>'.PHP_EOL.PHP_EOL, $kv[0], $kv[1]);
             }
 
-            if ($toFrontMatter && $hasTableKey) {
+            if ($hasTableKey && in_array($tableKey, ['overview_table', 'summary'])) {
                 $this->metadata['tables'][$tableKey] = $tableData;
             }
 

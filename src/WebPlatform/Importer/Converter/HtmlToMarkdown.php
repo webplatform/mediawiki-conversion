@@ -135,7 +135,8 @@ class HtmlToMarkdown implements ConverterInterface
             }
 
             $newRev = new MarkdownRevision($content, $matter_local);
-            $newRev->setTitle(substr($title, (int) strrpos($title, '/') + 1));
+            $title = (strrpos($title, '/') === false)?$title:substr($title, (int) strrpos($title, '/') + 1);
+            $newRev->setTitle($title);
             $newRev->setAuthor($revision->getAuthor());
 
             return $newRev;

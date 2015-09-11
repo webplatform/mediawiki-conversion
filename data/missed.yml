@@ -10,6 +10,11 @@
 # https://docs.webplatform.org/w/index.php?action=edit&title=WPD:Getting_Started/examples
 #
 missed:
+  - glossary/main
+  - dom/HTMLCanvasElement
+  - dom/HTMLDataElement
+  - dom/HTMLMediaElement
+  - dom/HTMLTrackElement
   - tutorials/eventsource_basics
   - tutorials/styling_xml_with_css
   - tutorials/debugging_css
@@ -30,6 +35,8 @@ missed:
   - css/properties/font-size
   - css/selectors/pseudo-classes/not
   - dom/NamedNodeMap/removeNamedItem
+  - dom/HTMLLabelElement
+  - css/media_queries/media_groups/visual
   - dom/interface
   - guides/html_forms_basics
   - guides/html_links
@@ -41,4 +48,3 @@ missed:
   - svg/properties/cx_SVGRadialGradientElement
   - svg/tutorials/smarter_svg_filters
   - tutorials/html5_form_features
-
