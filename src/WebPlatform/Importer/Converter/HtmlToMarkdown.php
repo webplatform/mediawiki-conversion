@@ -7,7 +7,7 @@ namespace WebPlatform\Importer\Converter;
 
 use WebPlatform\ContentConverter\Converter\ConverterInterface;
 use WebPlatform\ContentConverter\Model\AbstractRevision;
-use WebPlatform\ContentConverter\Model\MarkdownRevision;
+use WebPlatform\Importer\Model\MarkdownRevision;
 use WebPlatform\Importer\Model\HtmlRevision;
 use Pandoc\Pandoc;
 
@@ -90,7 +90,7 @@ class HtmlToMarkdown implements ConverterInterface
         return $this;
     }
 
-    protected function convert($html)
+    public function markdownify($html)
     {
         return $this->converter->runWith($html, $this->options);
     }
@@ -111,7 +111,7 @@ class HtmlToMarkdown implements ConverterInterface
             $title = (isset($dto['parse']['displaytitle'])) ? $dto['parse']['displaytitle'] : $revision->getTitle();
 
             $html = $revision->getContent();
-            $matter_local = $revision->getMetadata();
+            $matter_local = $revision->getFrontMatterData();
 
             $matter_local['uri'] = $title;
 
@@ -128,15 +128,43 @@ class HtmlToMarkdown implements ConverterInterface
             }
 
             if ($revision->isMarkdownConvertible() === true) {
-                $content = $this->convert($html);
+                $content = $this->markdownify($html);
                 $content = preg_replace_callback("/```\s?\{\.(.*)\}/muS", $this->languageCodeCallback, $content);
             } else {
                 $content = $html;
             }
 
+            if (isset($matter_local['tables']) && is_array($matter_local['tables'])) {
+                $newTables = [];
+                foreach ($matter_local['tables'] as $tableKey => $tableData) {
+                    $newTableData = [];
+                    foreach ($tableData as $subTableKey => $subtableValue) {
+                        $rowKeyCopy = $this->markdownify($subTableKey);
+                        $rowDataCopy = $this->markdownify($subtableValue);
+                        $newTableData[$rowKeyCopy] = $rowDataCopy;
+                    }
+                    $newTables[$tableKey] = $newTableData;
+                }
+                unset($matter_local['tables']);
+                $matter_local = array_merge($matter_local, $newTables);
+            }
+
+            if (isset($matter_local['attributions'])) {
+                $newAttributions = [];
+                foreach ($matter_local['attributions'] as $attributionRow) {
+                    $rowData = $this->markdownify($attributionRow);
+                    if (!empty($rowData)) {
+                        $newAttributions[] = $rowData;
+                    }
+                }
+                if (count($newAttributions) >= 1) {
+                    $matter_local['attributions'] = $newAttributions;
+                } else {
+                    unset($matter_local['attributions']);
+                }
+            }
+
             $newRev = new MarkdownRevision($content, $matter_local);
-            $title = (strrpos($title, '/') === false)?$title:substr($title, (int) strrpos($title, '/') + 1);
-            $newRev->setTitle($title);
             $newRev->setAuthor($revision->getAuthor());
 
             return $newRev;

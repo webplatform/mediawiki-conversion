@@ -10,7 +10,20 @@
 # https://docs.webplatform.org/w/index.php?action=edit&title=WPD:Getting_Started/examples
 #
 missed:
+  - Main_Page/zh-hant
+  - css/fr
+  - concepts/accessibility/es
+  - concepts/accessibility/ja
+  - html/elements/table
   - glossary/main
+  - css
+  - concepts/accessibility
+  - dom/DOMTokenList/length
+  - dom/DomTokenList/item
+  - dom/DataTransfer/files
+  - apis/appcache/ApplicationCache/status
+  - tutorials/table_styling_basics
+  - apis/audio-video/TimeRanges/start
   - dom/HTMLCanvasElement
   - dom/HTMLDataElement
   - dom/HTMLMediaElement
@@ -30,7 +43,6 @@ missed:
   - WPD/Getting_Started/examples
   - apis/appcache/ApplicationCache
   - concepts/Internet_and_Web/mime_types
-  - css
   - css/properties/border-radius
   - css/properties/font-size
   - css/selectors/pseudo-classes/not
@@ -43,7 +55,6 @@ missed:
   - html/attributes/cellPadding
   - html/elements
   - html/elements/input/type/file
-  - html/elements/table
   - html/tutorials
   - svg/properties/cx_SVGRadialGradientElement
   - svg/tutorials/smarter_svg_filters

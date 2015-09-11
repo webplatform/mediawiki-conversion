@@ -47,7 +47,7 @@ class HtmlRevision extends AbstractRevision
 
         $this->dto = $recv;
 
-        $this->metadata['broken_links'] = $recv->getBrokenLinks();
+        $this->front_matter['broken_links'] = $recv->getBrokenLinks();
 
         $this->setTitle($recv->getTitle());
         $this->makeTags($recv->getCategories());
@@ -85,27 +85,133 @@ class HtmlRevision extends AbstractRevision
         $titlesMatches = $pageDom->get('h1,h2,h3,h4,h5,h6'); // do we really have an h6 tag?
         foreach ($titlesMatches as $title) {
             $titleText = $title->getText();
-            $title->setValue(htmlentities($titleText));
+            // Chinese and other languages doesn't like to be htmlentities escaped.
+            $escapedTitle = htmlspecialchars($titleText, ENT_COMPAT|ENT_HTML401, ini_get("default_charset"), false);
+            $title->setValue($escapedTitle);
+        }
+        $firstFirstTitle = $pageDom->get('h1');
+        if (count($firstFirstTitle) >= 1) {
+            $this->metadata['first_title'] = $firstFirstTitle[0]->getText();
+            $firstFirstTitle[0]->delete();
         }
         unset($titlesMatches);
+
+        /**
+         * Languages link table.
+         *
+         *     table.languages .mbox-text span[lang]
+         *
+         * ```
+         * <table class="nmbox languages"><tr><th><b>Language</b></th>
+         * <td class="mbox-text">
+         *   <span lang="es"><a href="/wiki/css/es" title="css/es">español</a></span>&#160;&#8226;&#32;
+         *   <span lang="fr"><a href="/wiki/css/fr" title="css/fr">français</a></span>
+         *   ...
+         * </td></tr></table>
+         * ```
+         */
+        $langMatches = $pageDom->get('table.languages .mbox-text span[lang] a');
+        if (count($langMatches) >= 1) {
+            foreach ($langMatches as $lang) {
+                $langNode = $lang->getDOMNode();
+                $langCode = $langNode->parentNode->getAttribute('lang');
+                $langOut = [];
+                $langOut['text'] = $lang->getText();
+                $langOut['href'] = str_replace('/wiki', '', $langNode->getAttribute('href'));
+                $this->front_matter['translations'][$langCode] = $langOut;
+            }
+            $toDelete = $pageDom->get('table.languages');
+            $toDelete[0]->delete();
+        }
+
+        $dataTypeTags = $pageDom->get('[data-meta]');
+        if (count($dataTypeTags) >= 1) {
+            foreach ($dataTypeTags as $dataTypeTag) {
+                $dataTypeTagNode = $dataTypeTag->getDOMNode();
+                $dataKey = $dataTypeTagNode->getAttribute('data-meta');
+                $dataText = $dataTypeTagNode->firstChild->nodeValue;
+
+                $obj['predicate'] = $dataText;
+
+                if ($dataKey === "summary") {
+                    // We already get that elsewhere anyway
+                    continue;
+                }
+
+                foreach ($dataTypeTagNode->childNodes as $childNode) {
+                    if (isset($childNode->tagName) && $childNode->tagName === 'span') {
+                        //var_dump($childNode->firstChild); // DEBUG
+                        if ($childNode->firstChild instanceof \DOMElement && $childNode->firstChild->tagName === 'a') {
+                            $obj['value'] = $childNode->firstChild->nodeValue;
+                            $obj['href'] = str_replace('/wiki', '', $childNode->firstChild->getAttribute('href'));
+                        } else {
+                            $obj['value'] = $childNode->nodeValue;
+                        }
+                        $childNode->removeAttribute('data-type');
+                    }
+                }
+
+                $dataTypeTagNode->removeAttribute('data-meta');
+                $dataTypeTagNode->removeAttribute('data-type');
+                if (!empty($dataTypeValue) && $dataTypeValue !== $dataText) {
+                    $obj['value'] = $dataTypeValue;
+                }
+
+                $this->front_matter['relationships'][$dataKey] = $obj;
+
+                $someReformattedHtml = $this->toHtml($dataTypeTagNode->childNodes);
+                $someReformattedHtml = str_replace(['<span>', '</span>'], '', $someReformattedHtml);
+                $this->replaceNodeContentsWithHtmlString($dataTypeTagNode, $someReformattedHtml);
+            }
+        }
+        unset($dataTypeTags);
+
+        /**
+         * Lets remove attribution blocks and put them verbatim in the front matter
+         */
+        $attributionMatches = $pageDom->get('.attribution p');
+        if (count($attributionMatches) >= 1) {
+            // Garbage markup and redundant text that can be put elsewhere.
+            // e.g. if we have attributions, we can add "Portions..." through static site generator.
+            // No need to hardcode that text in the docs page themselves.
+            $attribRepl['Portions of this content come from the '] = '';
+            $attribRepl['This article contains content originally from external sources.'] = '';
+            $attribRepl['<br/>'] = '';
+            $attribRepl['</i>'] = '';
+            $attribRepl['<i>'] = '';
+            foreach ($attributionMatches as $attrib) {
+                $verbose = str_replace(array_keys($attribRepl), $attribRepl, $attrib->getHtml());
+                if (!empty($verbose)) {
+                    $this->front_matter['attributions'][] = trim($verbose);
+                }
+            }
+        }
+        unset($attributionMatches);
+        $attributionBlockMatch = $pageDom->get('.attribution');
+        if (count($attributionBlockMatch) >= 1) {
+            foreach ($attributionBlockMatch as $attribBlock) {
+                $attribBlock->delete();
+            }
+        }
+        unset($attributionBlockMatch);
 
         /**
          * Extract readiness-state info, pluck it up in the front matter
          */
         $nessMatches = $pageDom->get('.readiness-state');
         if (isset($nessMatches[0])) {
-            $this->metadata['readiness'] = str_replace('readiness-state ', '', $nessMatches[0]->getAttribute('class'));
+            $this->front_matter['readiness'] = str_replace('readiness-state ', '', $nessMatches[0]->getAttribute('class'));
             $nessMatches[0]->delete();
         }
         unset($nessMatches);
 
         /**
-         * Extract Standardization status info, pluck it up in the front matter.
+         * Extract Standardization (s13n) status info, pluck it up in the front matter.
          */
         $s13nMatches = $pageDom->get('.standardization_status');
         if (isset($s13nMatches[0])) {
             $status = (empty($s13nMatches[0]->getText()))?'Unknown':$s13nMatches[0]->getText();
-            $this->metadata['standardization_status'] = $status;
+            $this->front_matter['standardization_status'] = $status;
             $s13nMatches[0]->delete();
         }
         unset($s13nMatches);
@@ -119,7 +225,7 @@ class HtmlRevision extends AbstractRevision
                 foreach ($revisionNotesMatches as $note) {
                     $revisionNotesText = $note->getText();
                     if (!empty($revisionNotesText) && strcmp('{{{', substr($revisionNotesText, 0, 3)) !== 0) {
-                        $this->metadata['notes'][] = $revisionNotesText;
+                        $this->front_matter['notes'][] = $revisionNotesText;
                     }
                     $note->delete();
                 }
@@ -137,9 +243,9 @@ class HtmlRevision extends AbstractRevision
         $documentSummaryMatches = $pageDom->get('[data-meta=summary] [data-type=value]');
         if (count($documentSummaryMatches) >= 1) {
             $summaryNode = $documentSummaryMatches[0]->getDOMNode();
-            $summary = $documentSummaryMatches[0]->getText();
+            $summary = htmlspecialchars($documentSummaryMatches[0]->getText(), ENT_COMPAT|ENT_HTML401, ini_get("default_charset"), false);
             if (!empty($summary)) {
-                $this->metadata['summary'] = $summary;
+                $this->front_matter['summary'] = $summary;
                 $textNode = $summaryNode->ownerDocument->createTextNode($summary);
                 $summaryNode->parentNode->parentNode->appendChild($textNode);
             }
@@ -192,9 +298,9 @@ class HtmlRevision extends AbstractRevision
                      */
                     if ($linkNode->textContent === "View live example") {
                         $hrefAttribute = str_replace('code.webplatform.org/gist', 'gist.github.com', $hrefAttribute);
-                        $this->metadata['code_samples'][] = $hrefAttribute;
+                        $this->front_matter['code_samples'][] = $hrefAttribute;
                     } else {
-                        //$this->metadata['external_links'][] = $hrefAttribute;
+                        //$this->front_matter['external_links'][] = $hrefAttribute;
                     }
                 }
 
@@ -234,20 +340,12 @@ class HtmlRevision extends AbstractRevision
         /**
          * Some wiki pages pasted more than once the links, better clean it up.
          */
-        if (isset($this->metadata['code_samples'])) {
-            $this->metadata['code_samples'] = array_unique($this->metadata['code_samples']);
+        if (isset($this->front_matter['code_samples'])) {
+            $this->front_matter['code_samples'] = array_unique($this->front_matter['code_samples']);
         }
-        if (isset($this->metadata['external_links'])) {
-            $this->metadata['external_links'] = array_unique($this->metadata['external_links']);
+        if (isset($this->front_matter['external_links'])) {
+            $this->front_matter['external_links'] = array_unique($this->front_matter['external_links']);
         }
-
-        $codeSampleHeadingMatches = $pageDom->get('.example span.language');
-        if (count($codeSampleHeadingMatches) >= 1) {
-            foreach ($codeSampleHeadingMatches as $codeSampleHeading) {
-                $codeSampleHeading->delete();
-            }
-        }
-        unset($codeSampleHeadingMatches);
 
         $codeSampleMatches = $pageDom->get('pre[class^=language]');
         if (count($codeSampleMatches) >= 1) {
@@ -273,7 +371,6 @@ class HtmlRevision extends AbstractRevision
             }
             unset($tablesMatches);
         }
-
 
         /**
          * Last pass, remove inuseful comments.
@@ -311,9 +408,10 @@ class HtmlRevision extends AbstractRevision
             $this->isEmpty = true;
             $this->setContent(null);
 
-            // Let's add metadata instead, so we'll catch them with
-            // static site generator downstream
-            $this->metadata['is_empty'] = true;
+            // Let's add is_empty to front matter instead,
+            // so we'll catch them with static site
+            // generator downstream
+            $this->front_matter['is_empty'] = true;
         }
 
     }
@@ -338,7 +436,7 @@ class HtmlRevision extends AbstractRevision
                     $tags[] = $t;
                 }
             }
-            $this->metadata['tags'] = array_unique($tags);
+            $this->front_matter['tags'] = array_unique($tags);
         }
     }
 
@@ -350,12 +448,14 @@ class HtmlRevision extends AbstractRevision
             throw new UnexpectedValueException('This method only accepts table nodes');
         }
 
-        $tableKey = strtolower(str_replace('wikitable ', '', $tableNode->getAttribute('class')));
+        $tableKey = strtolower(str_replace(['wikitable ', 'sortable '], '', $tableNode->getAttribute('class')));
 
         $hasTableKey = !empty($tableKey);
 
         $conditionsToUse[] = isset($tableNode->childNodes[0]) && $tableNode->childNodes[0]->tagName === 'tr';
         $conditionsToUse[] = isset($tableNode->childNodes[0]) && count($tableNode->childNodes[0]->childNodes) === 1;
+
+        //echo $tableKey.PHP_EOL; // DEBUG
 
         /**
          * We want to replace table **only if** its key: value type of table.
@@ -364,11 +464,7 @@ class HtmlRevision extends AbstractRevision
 
             // I wanted to use objects, but couldn't do it better than this.
             // Whatever.
-            if ($hasTableKey === true) {
-                $concatString = sprintf(PHP_EOL.'<dl data-table="%s">'.PHP_EOL, $tableKey);
-            } else {
-                $concatString = PHP_EOL.'<dl>'.PHP_EOL;
-            }
+            $concatString = PHP_EOL;
 
             $tableData = [];
             foreach ($tableNode->childNodes as $trNodes) {
@@ -393,22 +489,51 @@ class HtmlRevision extends AbstractRevision
                 }
 
                 $tableData[$kv[0]] = $kv[1];
-                $concatString .= sprintf('  <dt>%s</dt>'.PHP_EOL.'  <dd>%s</dd>'.PHP_EOL.PHP_EOL, $kv[0], $kv[1]);
+                if ($kv[0] === 'Specification') {
+                    // Let's not add this obvious title underneath
+                    // something that already has that title in place.
+                    continue;
+                }
+                //  Could not find a better way to have deflist work with Remarkable (the close-open tags below)
+                $concatString .= sprintf('<dl>'.PHP_EOL.'  <dt>%s</dt>'.PHP_EOL.'  <dd>%s</dd>'.PHP_EOL.'</dl>'.PHP_EOL, $kv[0], $kv[1]);
             }
 
-            if ($hasTableKey && in_array($tableKey, ['overview_table', 'summary'])) {
-                $this->metadata['tables'][$tableKey] = $tableData;
+            if ($hasTableKey && in_array($tableKey, ['overview_table'])) {
+                if (isset($this->front_matter['tables'][$tableKey])) {
+                    $this->front_matter['tables'][$tableKey] = array_merge($this->front_matter['tables'][$tableKey], $tableData);
+                } else {
+                    $this->front_matter['tables'][$tableKey] = $tableData;
+                }
             }
 
             // Yup. Take this big string, DOMify it.
-            $concatString .= '</dl>'.PHP_EOL.PHP_EOL;
-            $newTable = $tableNode->ownerDocument->createDocumentFragment();
-            $newTable->appendXML($concatString);
-
-            $tableNode->parentNode->replaceChild($newTable, $tableNode);
-
+            $concatString .= PHP_EOL.PHP_EOL;
+            $this->replaceNodeContentsWithHtmlString($tableNode, $concatString);
             unset($overviewTableMatches);
         }
+    }
+
+    private function replaceNodeContentsWithHtmlString(\DOMNode $node, $htmlString)
+    {
+        $newFragment = $node->ownerDocument->createDocumentFragment();
+        $newFragment->appendXML($htmlString);
+        $node->parentNode->replaceChild($newFragment, $node);
+    }
+
+    private function toHtml(\DOMNodeList $list)
+    {
+        $string = '';
+        foreach ($list as $child) {
+            if (isset($child->childNodes) && count($child->childNodes) >= 1) {
+                foreach ($child->childNodes as $childChild) {
+                    $string .= $childChild->ownerDocument->saveXML($childChild);
+                }
+                $string = trim($string);
+            }
+            $string .= $child->ownerDocument->saveXML($child);
+        }
+
+        return $string;
     }
 
     public function getAssets()

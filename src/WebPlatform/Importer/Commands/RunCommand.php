@@ -223,12 +223,6 @@ DESCR;
                     // Overwriting $revList for last pass we’ll
                     // use for conversion.
                     $revList = new SplDoublyLinkedList();
-
-                    // Pass some data we already have so we can
-                    // get it in the converted document.
-                    if ($wikiDocument->isTranslation() === true) {
-                        $revLast->setFrontMatter(array('lang' => $language_code));
-                    }
                     $revList->push($revLast);
                 } else {
                     $output->writeln(sprintf('  revisions_count: %d', $revs));
@@ -296,7 +290,7 @@ DESCR;
 
                         $newRev = new HtmlRevision($respObj, true);
                         $newRev->enableMarkdownConversion();
-                        $newRev->setTitle($wikiDocument->getLastTitleFragment());
+                        $newRev->setTitle($wikiDocument->getDocumentTitle());
 
                         $assets = $newRev->getAssets();
                         if (count($assets) >= 1) {
@@ -347,6 +341,21 @@ DESCR;
                             $removeFile = true; // Won't work. But, it could be a start.
                         } else {
                             $wikiRevision = $this->converter->apply($newRev);
+                        }
+
+                        // Most of the time, title is better written from the document itself than
+                        // from the URL. Let's only set title front matter attribute when we aren't a
+                        // translation. We'll then use instead the text in the first h1 we find
+                        // in the DOM.
+                        $metadata = $newRev->getMetadata();
+                        if (isset($metadata['first_title'])) {
+                            $wikiRevision->setTitle($metadata['first_title']);
+                        } else {
+                            $wikiRevision->setTitle($wikiDocument->getDocumentTitle());
+                        }
+
+                        if ($wikiDocument->isTranslation() === true) {
+                            $wikiRevision->setFrontMatter(['lang' => $wikiDocument->getLanguageCode()]);
                         }
 
                         $revision_id = $revLast->getId();

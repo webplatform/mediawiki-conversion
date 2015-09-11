@@ -70,8 +70,6 @@ class MediaWikiDocument extends BaseMediaWikiDocument
      */
     const REGEX_LANGUAGES = '/\/(ar|ast|az|bcc|bg|ca|cs|da|de|diq|el|eo|es|fa|fi|fr|gl|gu|he|hu|hy|it|ja|ka|kk|km|ko|ksh|kw|mk|ml|mr|ms|nl|no|oc|pl|pt|pt\-br|ro|ru|si|sk|sl|sq|sr|sv|ta|tr|uk|vi|yue|zh|zh\-hant|zh\-hans)"$/';
 
-    //
-
     /**
      * Commonly used translation codes used in WebPlatform Docs.
      *
@@ -148,5 +146,27 @@ class MediaWikiDocument extends BaseMediaWikiDocument
         }
 
         return in_array($this->getLastTitleFragment(), array_keys(self::$translationCodes)) === true;
+    }
+
+    public function getDocumentTitle()
+    {
+        $title = $this->title;
+        if ($this->isTranslation()) {
+            $parts = explode('/', $title);
+            $select = count($parts) - 2;
+
+            if (isset($parts[$select])) {
+                return $parts[$select];
+            }
+        }
+
+        return $this->getLastTitleFragment();
+    }
+
+    public function getLastTitleFragment()
+    {
+        $title = $this->getTitle();
+
+        return (strrpos($title, '/') === false)?$title:substr($title, (int) strrpos($title, '/') + 1);
     }
 }
