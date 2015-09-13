@@ -11,4 +11,53 @@
 #
 missed:
   - en
-  
+  - concepts/accessibility/ja
+  - concepts/accessibility/es
+  - Beginners/ja
+  - Main_Page/zh-hant
+  - css/fr
+  - html/elements/table
+  - glossary/main
+  - css
+  - concepts/accessibility
+  - dom/DOMTokenList/length
+  - dom/DomTokenList/item
+  - dom/DataTransfer/files
+  - apis/appcache/ApplicationCache/status
+  - tutorials/table_styling_basics
+  - apis/audio-video/TimeRanges/start
+  - dom/HTMLCanvasElement
+  - dom/HTMLDataElement
+  - dom/HTMLMediaElement
+  - dom/HTMLTrackElement
+  - tutorials/eventsource_basics
+  - tutorials/styling_xml_with_css
+  - tutorials/debugging_css
+  - tutorials/javascript_statements
+  - concepts/programming/about_javascript
+  - Accessibility_basics
+  - Meta/Editors_Guide
+  - Meta/Editors_Guide/content
+  - Meta/svg_test
+  - Meta/web_platform_wednesday/past_reports
+  - WPD/Community/Meetings/General/Earlier
+  - WPD/Community/Task_Force
+  - WPD/Getting_Started/examples
+  - apis/appcache/ApplicationCache
+  - concepts/Internet_and_Web/mime_types
+  - css/properties/border-radius
+  - css/properties/font-size
+  - css/selectors/pseudo-classes/not
+  - dom/NamedNodeMap/removeNamedItem
+  - dom/HTMLLabelElement
+  - css/media_queries/media_groups/visual
+  - dom/interface
+  - guides/html_forms_basics
+  - guides/html_links
+  - html/attributes/cellPadding
+  - html/elements
+  - html/elements/input/type/file
+  - html/tutorials
+  - svg/properties/cx_SVGRadialGradientElement
+  - svg/tutorials/smarter_svg_filters
+  - tutorials/html5_form_features

@@ -84,10 +84,21 @@ class HtmlRevision extends AbstractRevision
          */
         $titlesMatches = $pageDom->get('h1,h2,h3,h4,h5,h6'); // do we really have an h6 tag?
         foreach ($titlesMatches as $title) {
-            $titleText = $title->getText();
-            // Chinese and other languages doesn't like to be htmlentities escaped.
-            $escapedTitle = htmlspecialchars($titleText, ENT_COMPAT|ENT_HTML401, ini_get("default_charset"), false);
-            $title->setValue($escapedTitle);
+            $titleNode = $title->getDomNode();
+            $titleSpan = $titleNode->firstChild;
+            $titleSpan->removeAttribute('id');
+            $titleSpan->removeAttribute('class');
+
+            /**
+             * Can't do replacement here. It breaks with Japanese pages.
+             *
+             * we'll live with <hn><span>Foo</span></hn> to be "# <span>Foo</span>" in conversion.
+              /
+            $titleText = $titleSpan->firstChild->nodeValue;
+            $escapedTitle = $titleText; //htmlspecialchars($titleText, ENT_COMPAT|ENT_HTML401, ini_get("default_charset"), false);
+            $textNode = $titleNode->ownerDocument->createTextNode($escapedTitle);
+            $titleNode->replaceChild($textNode, $titleSpan);
+            */
         }
         $firstFirstTitle = $pageDom->get('h1');
         if (count($firstFirstTitle) >= 1) {

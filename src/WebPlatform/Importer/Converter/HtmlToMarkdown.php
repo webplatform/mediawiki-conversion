@@ -27,7 +27,7 @@ class HtmlToMarkdown implements ConverterInterface
         "atx-headers" => null,
         "parse-raw" => null,
         "no-highlight" => null,
-        "ascii" => null
+        "normalize" => null
     );
 
     public function __construct()
