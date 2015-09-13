@@ -6,7 +6,13 @@
 namespace WebPlatform\Importer\Model;
 
 use WebPlatform\ContentConverter\Model\MarkdownRevision as BaseMarkdownRevision;
+use Symfony\Component\Yaml\Dumper;
 
+/**
+ * Markdown Revision, with some project specific adjustments.
+ *
+ * @author Renoir Boulanger <hello@renoirboulanger.com>
+ */
 class MarkdownRevision extends BaseMarkdownRevision
 {
     public function getFrontMatter()
