@@ -25,6 +25,8 @@ class HtmlRevision extends AbstractRevision
 
     protected $metadata = [];
 
+    protected $namespacePrefix = '';
+
     protected $markdownConvertible = false;
 
     /** @var array List of files used in reference */
@@ -49,7 +51,19 @@ class HtmlRevision extends AbstractRevision
 
         $this->front_matter['broken_links'] = $recv->getBrokenLinks();
 
-        $this->setTitle($recv->getTitle());
+        $title = $recv->getTitle();
+        $seekNamespaceSeparator = strpos($title, ':');
+
+        // We don't want to convert to namespace if its too far.
+        // If your namespace is longer than 5 characters, adjust below.
+        if (is_numeric($seekNamespaceSeparator) && $seekNamespaceSeparator > 5) {
+            $seekNamespaceSeparator = false;
+        }
+        if ($seekNamespaceSeparator !== false && is_numeric($seekNamespaceSeparator) && $seekNamespaceSeparator > 2) {
+            $this->namespacePrefix = substr($title, 0, $seekNamespaceSeparator);
+        }
+
+        $this->setTitle($title);
         $this->makeTags($recv->getCategories());
         $this->setAuthor(new MediaWikiContributor(null), false);
 
@@ -344,7 +358,8 @@ class HtmlRevision extends AbstractRevision
         if (count($assetUseMatches) >= 1) {
             foreach ($assetUseMatches as $asset) {
                 $assetFileNode = $asset->getDOMNode();
-                $this->assets[] = $assetFileNode->getAttribute('src');
+                //var_dump($this->wrapNamespacePrefixTo($assetFileNode->getAttribute('src'))); // DEBUG
+                $this->assets[] = $this->wrapNamespacePrefixTo($assetFileNode->getAttribute('src'));
             }
         }
 
@@ -522,6 +537,16 @@ class HtmlRevision extends AbstractRevision
             $this->replaceNodeContentsWithHtmlString($tableNode, $concatString);
             unset($overviewTableMatches);
         }
+    }
+
+    private function wrapNamespacePrefixTo($assetUrl)
+    {
+        $prefix = '';
+        if (!empty($this->namespacePrefix)) {
+            $prefix = '/'.$this->namespacePrefix;
+        }
+
+        return $prefix.$assetUrl;
     }
 
     private function replaceNodeContentsWithHtmlString(\DOMNode $node, $htmlString)

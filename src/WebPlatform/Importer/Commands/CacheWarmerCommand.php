@@ -39,6 +39,7 @@ DESCR;
                 [
                     new InputOption('missed', '', InputOption::VALUE_NONE, 'Give XML node indexes of missed conversion so we can run through only them'),
                     new InputOption('max-pages', '', InputOption::VALUE_OPTIONAL, 'Do not make full run, limit to a maximum of pages', 0),
+                    new InputOption('resume-at', '', InputOption::VALUE_OPTIONAL, 'Resume run at a specific XML document index number ', 0),
                 ]
             );
 
@@ -55,6 +56,8 @@ DESCR;
         $listMissed = $input->getOption('missed');
 
         $maxHops = (int) $input->getOption('max-pages');   // Maximum number of pages we go through
+
+        $resumeAt = (int) $input->getOption('resume-at');
 
         $ids = [];
 
@@ -74,6 +77,15 @@ DESCR;
                 if ($maxHops > 0 && $maxHops === $counter - 1) {
                     $output->writeln(sprintf(PHP_EOL.'Reached desired maximum of %d documents', $maxHops).PHP_EOL);
                     break;
+                }
+
+                /*
+                 * Handle interruption by telling where to resume work.
+                 *
+                 * This is useful if job stopped and you want to resume work back at a specific point.
+                 */
+                if ($counter < $resumeAt) {
+                    continue;
                 }
 
                 $wikiDocument = new MediaWikiDocument($pageNode);
