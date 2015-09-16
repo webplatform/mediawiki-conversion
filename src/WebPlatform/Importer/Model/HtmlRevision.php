@@ -292,7 +292,14 @@ class HtmlRevision extends AbstractRevision
          *
          * see: css/properties/border-radius
          */
-        //$liCodeAnchorMatches = $pageDom->get('li > code > a');
+        $liCodeAnchorMatches = $pageDom->get('li > code > a');
+        if (count($liCodeAnchorMatches)) {
+            foreach ($liCodeAnchorMatches as $aElem) {
+                $aElemNode = $aElem->getDOMNode();
+                $aElemNode->parentNode->parentNode->replaceChild($aElemNode, $aElemNode->parentNode);
+            }
+        }
+        unset($liCodeAnchorMatches);
 
         /**
          * Remove tagsoup in <a/> tags
