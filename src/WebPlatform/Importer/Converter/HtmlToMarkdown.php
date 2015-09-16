@@ -22,8 +22,8 @@ class HtmlToMarkdown implements ConverterInterface
     protected $converter;
 
     protected $options = array(
-        "from"  => "html",
-        "to"    => "markdown_github+blank_before_header+blank_before_blockquote+definition_lists",
+        "from" => "html",
+        "to" => "markdown_github+blank_before_header+blank_before_blockquote+definition_lists",
         "atx-headers" => null,
         "parse-raw" => null,
         "no-highlight" => null,
@@ -105,6 +105,8 @@ class HtmlToMarkdown implements ConverterInterface
     public function apply(AbstractRevision $revision)
     {
         if ($revision instanceof HtmlRevision) {
+            $wasEmpty = $revision->isEmpty();
+
             // Since MediaWikiApiParseActionResponse
             // implements \JsonSerializable
             $dto = $revision->getApiResponseObject()->jsonSerialize();
@@ -162,6 +164,11 @@ class HtmlToMarkdown implements ConverterInterface
                 } else {
                     unset($matter_local['attributions']);
                 }
+            }
+
+            if (empty($content) && $wasEmpty === false) {
+                $matter_local['notes'][] = 'Require manual conversion! See https://github.com/webplatform/mediawiki-conversion/issues/24';
+                $content = $revision->getTextContent();
             }
 
             $newRev = new MarkdownRevision($content, $matter_local);

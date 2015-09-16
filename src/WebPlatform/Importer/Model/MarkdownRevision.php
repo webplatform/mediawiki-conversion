@@ -29,7 +29,7 @@ class MarkdownRevision extends BaseMarkdownRevision
         $out[] = '---';
         $titleCopy = $this->front_matter['title'];
         unset($this->front_matter['title']);
-        $out[] .= sprintf('title: "%s"', $titleCopy);
+        $out[] .= sprintf("title: '%s'", $titleCopy);
 
         if (!empty($this->front_matter)) {
             $out[] = $yaml->dump($this->front_matter, 3, 0, false, false);

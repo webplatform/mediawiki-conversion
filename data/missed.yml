@@ -19,6 +19,11 @@ missed:
   - concepts/accessibility/es
   - tutorials/using_css_background_images/ja
   - Main_Page/chs
+  - css/cssom/properties
+  - html/elements/a
+  - tutorials/content-security-policy
+  - css/properties/background-position
+  - tutorials/mobile_mobifying
   - html/elements/table
   - Beginners/the_beginning
   - glossary/main

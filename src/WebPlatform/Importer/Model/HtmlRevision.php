@@ -76,6 +76,8 @@ class HtmlRevision extends AbstractRevision
             $this->setContent($recv->getHtml());
         }
 
+        $this->mapCompatibilityTableFlag();
+
         return $this;
     }
 
@@ -296,7 +298,11 @@ class HtmlRevision extends AbstractRevision
         if (count($liCodeAnchorMatches)) {
             foreach ($liCodeAnchorMatches as $aElem) {
                 $aElemNode = $aElem->getDOMNode();
-                $aElemNode->parentNode->parentNode->replaceChild($aElemNode, $aElemNode->parentNode);
+                $codeBlockChildren = $aElemNode->parentNode->parentNode->childNodes;
+                if ($codeBlockChildren->length === 1) {
+                    $someReformattedHtml = $this->toHtml($aElemNode->parentNode->childNodes);
+                    $this->replaceNodeContentsWithHtmlString($aElemNode->parentNode, $someReformattedHtml);
+                }
             }
         }
         unset($liCodeAnchorMatches);
@@ -483,6 +489,27 @@ class HtmlRevision extends AbstractRevision
         }
     }
 
+    private function mapCompatibilityTableFlag()
+    {
+        $extractTemplateStringsClosure = function (&$item) {
+            $name = str_replace(' ', '_', $item['*']);
+            $item = substr($name, strpos($name, ':') + 1);
+        };
+
+        $localDto = $this->dto->jsonSerialize();
+        if (isset($localDto['parse']) && isset($localDto['parse']['templates'])) {
+            $templates = $localDto['parse']['templates'];
+            array_walk($templates, $extractTemplateStringsClosure);
+
+            if (in_array('Compatibility', $templates)) {
+                $title = $localDto['parse']['title'];
+                $pkg['feature'] = substr($title, strrpos($title, '/') + 1);
+                $pkg['topic'] = substr($title, 0, strpos($title, '/'));
+                $this->front_matter['compatibility'] = $pkg;
+            }
+        }
+    }
+
     protected function convertTwoColsTableIntoDefinitionList(GlHtmlNode $ghn)
     {
         $tableNode = $ghn->getDOMNode();
@@ -515,6 +542,15 @@ class HtmlRevision extends AbstractRevision
                 $kv = [];
                 foreach ($trNodes->childNodes as $tdNodes) {
                     if (count($tdNodes->childNodes) === 1) {
+                        /*
+                        if ($tdNodes->childNodes[0] instanceof \DOMText) {
+                            $text = trim($tdNodes->childNodes[0]->wholeText);
+                            if (in_array($text, ['Specification', ])) {
+
+                            }
+                            var_dump($tdNodes->childNodes[0]);
+                        }
+                        */
                         $innerTdHTML = '';
                         foreach ($tdNodes->childNodes as $itd) {
                             $innerTdHTML .= $itd->ownerDocument->saveXML($itd);
@@ -607,6 +643,13 @@ class HtmlRevision extends AbstractRevision
     public function getMetadata()
     {
         return $this->metadata;
+    }
+
+    public function getTextContent()
+    {
+        $pageDom = new GlHtml($this->content);
+
+        return $pageDom->get("body")[0]->getHtml();
     }
 
     public function getContent()
