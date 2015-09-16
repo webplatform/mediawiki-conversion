@@ -135,7 +135,7 @@ class HtmlRevision extends AbstractRevision
          * </td></tr></table>
          * ```
          */
-        $langMatches = $pageDom->get('table.languages .mbox-text span[lang] a');
+        $langMatches = $pageDom->get('table.languages span[lang] a');
         if (count($langMatches) >= 1) {
             foreach ($langMatches as $lang) {
                 $langNode = $lang->getDOMNode();
@@ -145,9 +145,12 @@ class HtmlRevision extends AbstractRevision
                 $langOut['href'] = str_replace('/wiki', '', $langNode->getAttribute('href'));
                 $this->front_matter['translations'][$langCode] = $langOut;
             }
-            $toDelete = $pageDom->get('table.languages');
-            $toDelete[0]->delete();
         }
+        $langMatchesToDelete = $pageDom->get('table.languages');
+        if (count($langMatchesToDelete) >= 1) {
+            $langMatchesToDelete[0]->delete();
+        }
+
 
         $dataTypeTags = $pageDom->get('[data-meta]');
         if (count($dataTypeTags) >= 1) {
@@ -358,8 +361,9 @@ class HtmlRevision extends AbstractRevision
         if (count($assetUseMatches) >= 1) {
             foreach ($assetUseMatches as $asset) {
                 $assetFileNode = $asset->getDOMNode();
-                //var_dump($this->wrapNamespacePrefixTo($assetFileNode->getAttribute('src'))); // DEBUG
-                $this->assets[] = $this->wrapNamespacePrefixTo($assetFileNode->getAttribute('src'));
+                $assetSrc = $assetFileNode->getAttribute('src');
+                $assetFileNode->setAttribute('src', $this->wrapNamespacePrefixTo($assetSrc));
+                $this->assets[] = $assetSrc;
             }
         }
 

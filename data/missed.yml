@@ -10,14 +10,16 @@
 # https://docs.webplatform.org/w/index.php?action=edit&title=WPD:Getting_Started/examples
 #
 missed:
-  - en
-  - concepts/accessibility/ja
-  - concepts/accessibility/es
+  - css/fr
   - Beginners/ja
   - Main_Page/zh-hant
-  - css/fr
+  - concepts/es
+  - concepts/accessibility/ja
+  - concepts/accessibility/es
   - html/elements/table
+  - Beginners/the_beginning
   - glossary/main
+  - en
   - css
   - concepts/accessibility
   - dom/DOMTokenList/length
@@ -36,6 +38,7 @@ missed:
   - tutorials/javascript_statements
   - concepts/programming/about_javascript
   - Accessibility_basics
+  - Meta/HTML/Elements/spacer
   - Meta/Editors_Guide
   - Meta/Editors_Guide/content
   - Meta/svg_test
