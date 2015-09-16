@@ -2,7 +2,7 @@
 
 Or any set of `<page />` with `<revision />` stored in an XML file. See [required XML schema](#xml-schema).
 
-Expected outcome of this script will give you a Git repository.
+Expected outcome of this script will give you a Git repository with all your history converted into Git commits!
 
 ![MediaWiki history into Git repository](https://cloud.githubusercontent.com/assets/296940/8805874/a16047a4-2fa1-11e5-8ddf-22ea3d179dc9.png)
 
@@ -70,6 +70,8 @@ Other non use-case things this workspace helps you with.
 * Ability to detect if a page is a translation, create a file in the same folder with language name
 * Adds to front matter links that are known to be broken by MediaWiki
 
+Note that, parts of the features that are common to a similar content conversion has been factored out into an abstract library **[webplatform/content-converter](https://github.com/webplatform/content-converter)**.
+
 
 #### Utilities
 
@@ -132,6 +134,29 @@ If you have more than one data source, you could add the `--xml-source=` argumen
 
 * Keeps commit dates, but order of commits isn’t in chronological order
 * Commits follows this loop: loop through page and page create a commit for each revisions.
+* Due to content encoding, we couldn't make Pandoc successfully convert Japanese content. Output will convert headings as `# <span>Heading</span>`. But [it can be resolved with this command](#fixing-title-span)
+
+
+---
+
+
+## Work around quirks
+
+### Fixing title span
+
+One of the quirks encountered was that some documents were converting into empty files.
+Even though it had content!
+
+During attempt to solve, we couldn't remove `<span>` element in title blocks.
+Instead, we'll use `sed`!
+
+Run this command in the `out/` directory once the importer ran pass 3;
+
+    find . -type f -name '*md' -exec sed -E -i "" -e "s:<span>(.*)</span>:\1:" {} \;
+
+While being at it, we also had mention to MSDN erroneously copied over where the links are, in fact, local to the site.
+
+    find . -type f -name '*md' -exec sed -E -i "" -e "s:Related\ pages\ \(MSDN\):Related pages:" {} \;
 
 
 ---

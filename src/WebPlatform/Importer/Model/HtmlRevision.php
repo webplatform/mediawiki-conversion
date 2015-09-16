@@ -146,10 +146,16 @@ class HtmlRevision extends AbstractRevision
                 $this->front_matter['translations'][$langCode] = $langOut;
             }
         }
-        $langMatchesToDelete = $pageDom->get('table.languages');
+        /**
+         * Delete table.languages and leftover span.language
+         */
+        $langMatchesToDelete = $pageDom->get('table.languages,span.language');
         if (count($langMatchesToDelete) >= 1) {
-            $langMatchesToDelete[0]->delete();
+            foreach ($langMatchesToDelete as $el) {
+                $el->delete();
+            }
         }
+        unset($langMatchesToDelete, $langMatches);
 
 
         $dataTypeTags = $pageDom->get('[data-meta]');

@@ -12,15 +12,19 @@
 missed:
   - css/fr
   - Beginners/ja
+  - javascript/RegExp
   - Main_Page/zh-hant
   - concepts/es
   - concepts/accessibility/ja
   - concepts/accessibility/es
+  - tutorials/using_css_background_images/ja
+  - Main_Page/chs
   - html/elements/table
   - Beginners/the_beginning
   - glossary/main
   - en
   - css
+  - css/cssom/properties/pixelWidth
   - concepts/accessibility
   - dom/DOMTokenList/length
   - dom/DomTokenList/item
