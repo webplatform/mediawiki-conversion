@@ -27,7 +27,7 @@ class MarkdownRevision extends BaseMarkdownRevision
         ksort($this->front_matter);
 
         $out[] = '---';
-        $titleCopy = $this->front_matter['title'];
+        $titleCopy = str_replace("'", "\'", $this->front_matter['title']);
         unset($this->front_matter['title']);
         $out[] .= sprintf("title: '%s'", $titleCopy);
 

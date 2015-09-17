@@ -503,9 +503,20 @@ class HtmlRevision extends AbstractRevision
 
             if (in_array('Compatibility', $templates)) {
                 $title = $localDto['parse']['title'];
-                $pkg['feature'] = substr($title, strrpos($title, '/') + 1);
-                $pkg['topic'] = substr($title, 0, strpos($title, '/'));
-                $this->front_matter['compatibility'] = $pkg;
+
+                // ... Because we only want compat data front matter
+                // for pages in the main namespace
+                if (empty($this->namespacePrefix)) {
+                    $topic = (strpos($title, '/') === false) ? $title : substr($title, 0, strpos($title, '/'));
+                    $topic = (strpos($topic, ':') === false) ? $topic : substr($topic, strpos($topic, ':') + 1);
+                    $topic = strtolower($topic);
+
+                    $feature = (strrpos($title, '/') === false) ? $title : substr($title, strrpos($title, '/') + 1);
+
+                    $pkg['feature'] = $feature;
+                    $pkg['topic'] = $topic;
+                    $this->front_matter['compatibility'] = $pkg;
+                }
             }
         }
     }
