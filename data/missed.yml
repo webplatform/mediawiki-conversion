@@ -19,6 +19,7 @@ missed:
   - concepts/accessibility/es
   - tutorials/using_css_background_images/ja
   - Main_Page/chs
+  - css/cssom/CSSImportRule
   - css/cssom/properties
   - css/properties/background-position
   - html/elements/a
@@ -30,6 +31,8 @@ missed:
   - glossary/main
   - en
   - css
+  - tutorials/css_transitions
+  - css/properties/border-image-outset
   - css/cssom/properties/pixelWidth
   - concepts/accessibility
   - dom/DOMTokenList/length
@@ -65,6 +68,7 @@ missed:
   - dom/HTMLLabelElement
   - css/media_queries/media_groups/visual
   - dom/interface
+  - tutorials/forms_html5forms
   - guides/html_forms_basics
   - guides/html_links
   - html/attributes/cellPadding

@@ -311,11 +311,29 @@ class HtmlRevision extends AbstractRevision
          * Remove tagsoup in <a/> tags
          */
         $linksMatches = $pageDom->get('a');
+        $replacements[] = ['~https?:\/\/docs\.webplatform\.org~', ''];
+        $replacements[] = ['~^\/wiki~', ''];
+        $replacements[] = ['~code\.webplatform\.org\/gist~', 'gist.github.com'];
+        $replacements[] = ['~\/w\/images\/~', $this->wrapNamespacePrefixTo('/assets/public/')];
+
         if (count($linksMatches) >= 1) {
             foreach ($linksMatches as $link) {
                 $linkNode = $link->getDOMNode();
 
-                $hrefAttribute = preg_replace(['~^\/wiki~'], [''], $linkNode->getAttribute('href'));
+                $hrefAttribute = $linkNode->getAttribute('href');
+
+                foreach ($replacements as $repl) {
+                    $hrefAttribute = preg_replace($repl[0], $repl[1], $hrefAttribute);
+                }
+
+                if (isset($linkNode->textContent) && strpos($linkNode->textContent, 'docs.webplatform') !== false) {
+                    $newLabel = $linkNode->textContent;
+                    foreach ($replacements as $repl) {
+                        $newLabel = preg_replace($repl[0], $repl[1], $newLabel);
+                    }
+                    $linkNode->textContent = $newLabel;
+                }
+
                 $linkNode->setAttribute('href', $hrefAttribute);
 
                 /**
@@ -327,7 +345,6 @@ class HtmlRevision extends AbstractRevision
                  *
                  * <a href="/foo/bar">foo/bar</a>
                  **/
-                $classNames = explode(' ', $linkNode->getAttribute('class'));
                 if ($linkNode->hasAttribute('title')) {
                     $linkNode->removeAttribute('title');
                 }
@@ -337,6 +354,7 @@ class HtmlRevision extends AbstractRevision
                  *
                  * Thanks to MediaWiki, we know which ones goes outside of the wiki.
                  */
+                $classNames = explode(' ', $linkNode->getAttribute('class'));
                 if (in_array('external', $classNames)) {
 
                     /**
@@ -344,7 +362,6 @@ class HtmlRevision extends AbstractRevision
                      * move the link after the code sample.
                      */
                     if ($linkNode->textContent === "View live example") {
-                        $hrefAttribute = str_replace('code.webplatform.org/gist', 'gist.github.com', $hrefAttribute);
                         $this->front_matter['code_samples'][] = $hrefAttribute;
                     } else {
                         //$this->front_matter['external_links'][] = $hrefAttribute;
@@ -579,7 +596,7 @@ class HtmlRevision extends AbstractRevision
                 }
 
                 $tableData[$kv[0]] = $kv[1];
-                if ($kv[0] === 'Specification') {
+                if ($kv[0] === 'Specification' || $kv[0] === 'API Name') {
                     // Let's not add this obvious title underneath
                     // something that already has that title in place.
                     continue;
