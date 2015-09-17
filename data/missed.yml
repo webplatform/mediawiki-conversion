@@ -19,6 +19,7 @@ missed:
   - concepts/accessibility/es
   - tutorials/using_css_background_images/ja
   - Main_Page/chs
+  - svg/attributes/clip-rule
   - css/cssom/CSSImportRule
   - css/cssom/properties
   - css/properties/background-position

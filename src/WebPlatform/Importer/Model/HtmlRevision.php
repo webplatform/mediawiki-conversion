@@ -255,13 +255,13 @@ class HtmlRevision extends AbstractRevision
         /**
          * Extract revision notes, so we don't see edition work notes among page content.
          */
-        $revisionNotesMatches = $pageDom->get('.is-revision-notes');
+        $revisionNotesMatches = $pageDom->get('.is-revision-notes,.editors-only');
         if (count($revisionNotesMatches) >= 1) {
             if (isset($revisionNotesMatches[0])) {
                 foreach ($revisionNotesMatches as $note) {
                     $revisionNotesText = $note->getText();
                     if (!empty($revisionNotesText) && strcmp('{{{', substr($revisionNotesText, 0, 3)) !== 0) {
-                        $this->front_matter['notes'][] = $revisionNotesText;
+                        $this->front_matter['notes'][] = trim($revisionNotesText);
                     }
                     $note->delete();
                 }
@@ -675,6 +675,12 @@ class HtmlRevision extends AbstractRevision
 
     public function getTextContent()
     {
+        $content = $this->content;
+        if (empty(trim($content))) {
+            $this->front_matter['is_empty'] = true;
+            $this->isEmpty = true;
+            return '';
+        }
         $pageDom = new GlHtml($this->content);
 
         return $pageDom->get("body")[0]->getHtml();
