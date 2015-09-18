@@ -125,6 +125,10 @@ class HtmlToMarkdown implements ConverterInterface
             }
             unset($matter_local['broken_links']);
 
+            if (isset($matter_local['tags']) && count($matter_local['tags']) < 1) {
+                unset($matter_local['tags']);
+            }
+
             if (isset($matter_local['readiness'])) {
                 $matter_local['readiness'] = str_replace('_', ' ', $matter_local['readiness']);
             }

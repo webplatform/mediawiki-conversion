@@ -50,6 +50,7 @@ class HtmlRevision extends AbstractRevision
         $this->dto = $recv;
 
         $this->front_matter['broken_links'] = $recv->getBrokenLinks();
+        $this->front_matter['tags'] = [];
 
         $title = $recv->getTitle();
         $seekNamespaceSeparator = strpos($title, ':');
@@ -255,7 +256,7 @@ class HtmlRevision extends AbstractRevision
         /**
          * Extract revision notes, so we don't see edition work notes among page content.
          */
-        $revisionNotesMatches = $pageDom->get('.is-revision-notes,.editors-only');
+        $revisionNotesMatches = $pageDom->get('.is-revision-notes');
         if (count($revisionNotesMatches) >= 1) {
             if (isset($revisionNotesMatches[0])) {
                 foreach ($revisionNotesMatches as $note) {
@@ -267,7 +268,26 @@ class HtmlRevision extends AbstractRevision
                 }
             }
         }
-        unset($revisionNotesMatches);
+        /**
+         * Move Editor note as tag. They generally looks like this:
+         *
+         * - Needs Examples: This section should include examples
+         * - Needs Summary: This article does not have...
+         *
+         * Let's put the first part before ":" as a tag, without spaces.
+         */
+        $editorsOnly = $pageDom->get('.editors-only');
+        if (count($editorsOnly) >= 1) {
+            if (isset($editorsOnly[0])) {
+                foreach ($editorsOnly as $eoElement) {
+                    $editorNote = $eoElement->getText();
+                    $toTag = (strpos($editorNote, ':') !== false)?substr($editorNote, 0, strpos($editorNote, ':')):$editorNote;
+                    $this->front_matter['tags'][] = trim(str_replace(' ', '_', $toTag));
+                    $eoElement->delete();
+                }
+            }
+        }
+        unset($revisionNotesMatches, $editorsOnly);
 
         /**
          * Extract summary, add it up in the front matter.
@@ -311,24 +331,34 @@ class HtmlRevision extends AbstractRevision
          * Remove tagsoup in <a/> tags
          */
         $linksMatches = $pageDom->get('a');
-        $replacements[] = ['~https?:\/\/docs\.webplatform\.org~', ''];
-        $replacements[] = ['~^\/wiki~', ''];
-        $replacements[] = ['~code\.webplatform\.org\/gist~', 'gist.github.com'];
-        $replacements[] = ['~\/w\/images\/~', $this->wrapNamespacePrefixTo('/assets/public/')];
-
         if (count($linksMatches) >= 1) {
+            $linksReplacements[] = ['~https?:\/\/docs\.webplatform\.org~', ''];
+            $linksReplacements[] = ['~^\/wiki~', ''];
+            // Do we want to move references to github?
+            //$linksReplacements[] = ['~code\.webplatform\.org\/gist~', 'gist.github.com'];
+            $linksReplacements[] = ['~\/w\/images\/~', $this->wrapNamespacePrefixTo('/assets/public/'), true];
+
             foreach ($linksMatches as $link) {
                 $linkNode = $link->getDOMNode();
 
                 $hrefAttribute = $linkNode->getAttribute('href');
 
-                foreach ($replacements as $repl) {
+                foreach ($linksReplacements as $repl) {
                     $hrefAttribute = preg_replace($repl[0], $repl[1], $hrefAttribute);
+                    if (isset($repl[2]) && $repl[2] === true) {
+                        $this->assets[] = $hrefAttribute;
+                    }
                 }
 
-                if (isset($linkNode->textContent) && strpos($linkNode->textContent, 'docs.webplatform') !== false) {
+                /**
+                 * Remove hardcoded docs.webplatform in text content
+                 */
+                if (
+                    isset($linkNode->textContent) &&
+                    strpos($linkNode->textContent, 'docs.webplatform') !== false
+                ) {
                     $newLabel = $linkNode->textContent;
-                    foreach ($replacements as $repl) {
+                    foreach ($linksReplacements as $repl) {
                         $newLabel = preg_replace($repl[0], $repl[1], $newLabel);
                     }
                     $linkNode->textContent = $newLabel;
@@ -361,10 +391,15 @@ class HtmlRevision extends AbstractRevision
                      * If an external link has "View live example" in text, let's
                      * move the link after the code sample.
                      */
-                    if ($linkNode->textContent === "View live example") {
+                    if (
+                        (isset($linkNode->textContent) && strpos($linkNode->textContent, 'View live example') !== false) ||
+                        strpos($hrefAttribute, 'code.webplatform') !== false ||
+                        strpos($hrefAttribute, 'gist') !== false ||
+                        strpos($hrefAttribute, 'codepen') !== false ||
+                        strpos($hrefAttribute, 'jsbin') !== false ||
+                        strpos($hrefAttribute, 'dabblet') !== false
+                    ) {
                         $this->front_matter['code_samples'][] = $hrefAttribute;
-                    } else {
-                        //$this->front_matter['external_links'][] = $hrefAttribute;
                     }
                 }
 
@@ -388,20 +423,59 @@ class HtmlRevision extends AbstractRevision
                 }
             }
         }
-        unset($linksMatches);
+        unset($linksMatches, $linksReplacements);
 
         /**
          * Figure out which images are in use
          */
         $assetUseMatches = $pageDom->get('img');
         if (count($assetUseMatches) >= 1) {
+
+            /**
+             * Change plans! Let's host main docs assets in a separate repo. 40 Mb of assets
+             * is a bit too big for contributors to simply edit text.
+             *
+             * Let's leverage (once more) GitHub!! :)
+             */
+            if (empty($this->namespacePrefix)) {
+                // We had urls like static.webplatform.org/w/public/... but we'll change them
+                // to be under another a more descriptive name.
+                //
+                // Idea is that we host file uploads on GitHub, but keep reference in docs pages
+                // to remain on webplatform.org domain name.
+                //
+                // We can either;
+                //
+                // Configure Fastly static.webplatform.org service to point to githubusercontent.com/docs-assets/
+                // as file backend.
+                //
+                // OR
+                //
+                // We change CNAME value for static.webplatform.org to use GitHub static site generator.
+                // GitHub already uses a CDN anyway. (/me heard they are using Fastly. I can be mistaken)
+                //
+                $assetUseReplacements[] = ['~^\/assets\/public\/~', '//static.webplatform.org/'];
+                $assetUseReplacements[] = ['~^\/assets\/thumb\/~', '//static.webplatform.org/thumb/'];
+            }
+
             foreach ($assetUseMatches as $asset) {
                 $assetFileNode = $asset->getDOMNode();
                 $assetSrc = $assetFileNode->getAttribute('src');
-                $assetFileNode->setAttribute('src', $this->wrapNamespacePrefixTo($assetSrc));
+                $possiblyPrefixedAssetSrc = $this->wrapNamespacePrefixTo($assetSrc);
+
+                foreach ($assetUseReplacements as $repl) {
+                    $possiblyPrefixedAssetSrc = preg_replace($repl[0], $repl[1], $possiblyPrefixedAssetSrc);
+                }
+                $assetFileNode->setAttribute('src', $possiblyPrefixedAssetSrc);
+
+                 // Let's not prefix here, we'll use the when run the script here
+                 // we will write to a ./out/ folder that will be the subdirectory
+                 // from the main. Unless, we decide to make namespace to be a subfolder
+                 // from the main during an import.
                 $this->assets[] = $assetSrc;
             }
         }
+        unset($assetUseMatches, $assetUseReplacements);
 
         /**
          * Some wiki pages pasted more than once the links, better clean it up.
@@ -444,7 +518,6 @@ class HtmlRevision extends AbstractRevision
          * If it becomes an empty string, flag as empty or deleted document.
          */
         $glClassDoNotExposeDomDammit = $pageDom->get('body');
-        // Handle empty documents with only a comment
         if (isset($glClassDoNotExposeDomDammit[0])) {
 
             /**
@@ -493,15 +566,12 @@ class HtmlRevision extends AbstractRevision
     protected function makeTags($mediaWikiCategories)
     {
         if (count($mediaWikiCategories) >= 1) {
-            $tags = [];
+            $tags = $this->front_matter['tags'];
             foreach ($mediaWikiCategories as $tag) {
-                $t = explode('_', $tag);
-                if (is_array($t)) {
-                    $tags = array_merge($tags, $t);
-                } else {
-                    $tags[] = $t;
-                }
+                $tags[] = $tag;
             }
+            ksort($tags);
+            $tags = array_values($tags);
             $this->front_matter['tags'] = array_unique($tags);
         }
     }
@@ -620,14 +690,14 @@ class HtmlRevision extends AbstractRevision
         }
     }
 
-    private function wrapNamespacePrefixTo($assetUrl)
+    private function wrapNamespacePrefixTo($someUrl)
     {
         $prefix = '';
         if (!empty($this->namespacePrefix)) {
             $prefix = '/'.$this->namespacePrefix;
         }
 
-        return $prefix.$assetUrl;
+        return $prefix.$someUrl;
     }
 
     private function replaceNodeContentsWithHtmlString(\DOMNode $node, $htmlString)
